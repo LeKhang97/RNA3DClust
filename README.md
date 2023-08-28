@@ -27,3 +27,4 @@ options:
   -a {D,M,A,S}, --algorithm {D,M,A,S}
                         Clustering algorithm. Either: D (DBSCAN); M (MeanShift, default); A (Agglomerative); S (Spectral))
 ```
+### Notes

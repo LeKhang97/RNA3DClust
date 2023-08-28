@@ -3,9 +3,9 @@ This project aims to build a program to detect domains in RNA 3D structure deriv
 
 ### Usage
 You can execute the program by:<br>
-```python3 ./Clustering.py -i infile -v -a M -o outfile  ```
+```python3 Clustering.py -i infile -v -a M -o outfile  ```
 
-Type ```python3 ./Clustering.py -h``` for more information of the usage:
+Type ```python3 Clustering.py -h``` for more information of the usage:
 ```
 positional arguments:
   {D,M,A,S}
@@ -29,7 +29,7 @@ options:
 ```
 
 - Each algorithm has its default parameters. For example, if you want to check the MeanShift, type ```python3 ./Clustering.py M -h ``` for details. You can also change the parameters, in this case is the bandwidth (-b), by following: <br>
-``` python3 ./Clustering.py -i infile -v -a M -o outfile M -b 5```
+``` python3 Clustering.py -i infile -v -a M -o outfile M -b 5```
 
 ### Notes
 - All parameters specified for each algorithm can only be accessed after writing its abbreviation (besides the option -a Algorithm);

@@ -32,6 +32,7 @@ options:
 ``` python3 ./Clustering.py -i infile -v -a M -o outfile M -b 5```
 
 ### Notes
+- All parameters specified for each algorithm can only be accessed after writing its abbreviation (besides the option -a Algorithm);
 - The input must be in pdb format;
 - There are 2 output files if the output option is chosen. One file is the **JSON file**, which contains the coordinate, the residue number and the label of clusters. The other file contains the **command line for PyMOL GUI** to generate the clusters, which has the same name as the JSON file with the suffix '_pymolcmd'. After putting it (name ```outfile_pymolcmd``` for example) and the pdb file in the same working directory, from PyMOL GUI, you can try: <br>
 ```@outfile_pymolcmd ```

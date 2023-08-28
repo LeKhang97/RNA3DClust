@@ -1,10 +1,6 @@
 import numpy as np
 import sys
-import matplotlib.pyplot as plt
-import seaborn as sns
-import pandas as pd
 import numpy as np
-import math
 import itertools
 from sklearn.cluster import DBSCAN
 from sklearn.cluster import MeanShift
@@ -12,7 +8,6 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import SpectralClustering
 from sklearn.cluster import AffinityPropagation
 from numpyencoder import NumpyEncoder
-import statistics
 import os
 import json
 

@@ -159,6 +159,6 @@ def check_C(result, threshold):
             l = [[result[0][t][0][i], result[0][t][1][i], result[0][t][2][i]] for i in range(len(result[0][t][0]))]
             data += [np.array(l)]
 
-        return data, result[-1]
+        return data, [i for i in result[-1] if len(i) >= threshold]
 
     

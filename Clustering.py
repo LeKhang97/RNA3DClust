@@ -15,7 +15,7 @@ if __name__ == "__main__":
             file = infile.read().split('\n')
             print(y[2])
             C = process_pdb(file)
-            filename = ''.join(x[0].split('\\')[-1]).replace('.pdb','')
+            filename = ''.join(x[0].replace('\\','\').split('\')[-1]).replace('.pdb','')
             
             # Create a command file to PyMOL
             cmd_file = f'load {filename}.pdb; '

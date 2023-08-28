@@ -28,7 +28,7 @@ options:
                         Clustering algorithm. Either: D (DBSCAN); M (MeanShift, default); A (Agglomerative); S (Spectral))
 ```
 
-- Each algorithm has its default parameters. For example, if you want to check the MeanShift for example, type ```python3 ./Clustering.py M -h ``` for details. You can also change the parameters, in this case is the bandwidth (-b), by following: <br>
+- Each algorithm has its default parameters. For example, if you want to check the MeanShift, type ```python3 ./Clustering.py M -h ``` for details. You can also change the parameters, in this case is the bandwidth (-b), by following: <br>
 ``` python3 ./Clustering.py -i infile -v -a M -o outfile M -b 5```
 
 ### Notes

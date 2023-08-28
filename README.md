@@ -5,7 +5,7 @@ This project aims to build a program to detect domains in RNA 3D structure deriv
 You can execute the program by:<br>
 ```python3 ./Clustering.py -i infile -v -a M -o outfile  ```
 
-Type ```./Clustering.py -h``` for more information of the usage:
+Type ```python3 ./Clustering.py -h``` for more information of the usage:
 ```
 positional arguments:
   {D,M,A,S}
@@ -27,6 +27,10 @@ options:
   -a {D,M,A,S}, --algorithm {D,M,A,S}
                         Clustering algorithm. Either: D (DBSCAN); M (MeanShift, default); A (Agglomerative); S (Spectral))
 ```
+
+- Each algorithm has its default parameters. For example, if you want to check the MeanShift for example, type ```python3 ./Clustering.py M -h ``` for details. You can also change the parameters, in this case is the bandwidth (-b), by following: <br>
+``` python3 ./Clustering.py -i infile -v -a M -o outfile M -b 5```
+
 ### Notes
 - The input must be in pdb format;
 - There are 2 output files if the output option is chosen. One file is the **JSON file**, which contains the coordinate, the residue number and the label of clusters. The other file contains the **command line for PyMOL GUI** to generate the clusters, which has the same name as the JSON file with the suffix '_pymolcmd'. After putting it (name ```outfile_pymolcmd``` for example) and the pdb file in the same working directory, from PyMOL GUI, you can try: <br>

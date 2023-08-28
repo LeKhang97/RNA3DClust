@@ -34,7 +34,7 @@ if __name__ == "__main__":
         if y[1]:
             print("Number of models: ", len(models))
             print("Models: ", models, end='\n\n')
-            print("Nmber of chains: ", num_chains, end='\n\n')
+            print("Number of chains: ", num_chains, end='\n\n')
         
         # If the length of all chains is invalid, the program will exit
         if len(data) == 0:

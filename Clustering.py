@@ -19,7 +19,7 @@ if __name__ == "__main__":
                 filename = ''.join(x[0].split('\\')[-1]).replace('.pdb', '')
             else:
                 filename = ''.join(x[0].split('/')[-1]).replace('.pdb', '')
-            
+
             # Create a command file to PyMOL
             cmd_file = f'load {filename}.pdb; '
 

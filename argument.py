@@ -54,7 +54,7 @@ def main_argument():
     #parser_a_A.add_argument('-l', type=str, default= 'euclidean', help='linkage (default = euclidean)')
 
     # Subparser for -a S
-    parser_a_S = subparsers.add_parser('C', help='Arguments for Spectral algorithm')
+    parser_a_S = subparsers.add_parser('S', help='Arguments for Spectral algorithm')
     parser_a_S.add_argument('-n', type=int, default= 2, help='number of clusters (default = 2)')
     parser_a_S.add_argument('-g', type=float, default= 1, help='gamma (default = 1)')
 

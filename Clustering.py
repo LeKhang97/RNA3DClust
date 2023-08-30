@@ -19,7 +19,7 @@ if __name__ == "__main__":
                 filename = ''.join(x[0].split('\\')[-1]).replace('.pdb', '')
             else:
                 filename = ''.join(x[0].split('/')[-1]).replace('.pdb', '')
-
+            
             # Create a command file to PyMOL
             cmd_file = f'load {filename}.pdb; '
 
@@ -62,8 +62,8 @@ if __name__ == "__main__":
         #If the user want to cluster each chain separately
         else:
             for subdata, res_num, i in zip(data, res_num_array, C[1]):
-                print(i)
                 pred = cluster_algo(subdata, *x[1:])
+
                 name = filename + f'_chain_{i}'
                 pymol_cmd = pymol_proccess(pred, res_num, name)
                 print('\n')
@@ -73,7 +73,7 @@ if __name__ == "__main__":
                                                 'PyMOL': pymol_cmd
                                                 }
                 if i.split('_')[1] == 'MODEL1' or 'MODEL' not in i:
-                    cmd_file += '; '.join(pymol_cmd) + '; '
+                    cmd_file += '; '.join(pymol_cmd) + ';'
                 
     #Check if the user want to write the result to a file
     if y[0] != None:

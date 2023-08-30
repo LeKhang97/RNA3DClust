@@ -1,6 +1,10 @@
 import numpy as np
 import sys
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 import numpy as np
+import math
 import itertools
 from sklearn.cluster import DBSCAN
 from sklearn.cluster import MeanShift
@@ -8,6 +12,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import SpectralClustering
 from sklearn.cluster import AffinityPropagation
 from numpyencoder import NumpyEncoder
+import statistics
 import os
 import json
 
@@ -127,22 +132,100 @@ def command_pymol(l, name, color):
     print(mess)
     return mess
 
+def distance_2arrays(arr1, arr2):
+    dist = 1
+    for i in range(len(arr1)):
+        if arr1[i] == arr2[i]:
+            dist -= 1/len(arr1)
+    
+    return dist
+
+def join_clusters(list_cluster):
+    prev_result = list_cluster
+    result = []
+    cont = True
+    while cont:
+        cont = False
+        for cluster1, cluster2 in itertools.combinations(prev_result, 2):
+            if any(i in cluster1 for i in cluster2):
+                if cluster1 in result:
+                    result.remove(cluster1)
+                if cluster2 in result:
+                    result.remove(cluster2)
+                
+                result += [tuple(set(cluster1 + cluster2))]
+                cont = True
+        
+        result = list(set(result))
+        prev_result = result
+
+    return prev_result
+
 def cluster_algo(*args):
     data = args[0]
     if args[1] == 'D':
+        print("Executing DBSCAN...")
         model = DBSCAN(eps=args[2], min_samples= args[3])
     elif args[1] == 'M':
+        print("Executing MeanShift...")
         model = MeanShift(bandwidth= args[2])
     elif args[1] == 'A':
+        print("Executing Agglomerative...")
         model = AgglomerativeClustering(n_clusters= args[2])
     elif args[1] == 'S':
+        print("Executing Spectral...")
         model = SpectralClustering(n_clusters= args[2], gamma= args[3])
+    elif args[1] == 'C':
+        print("Executing DBSCAN...")
+        model1 = DBSCAN(eps=args[2], min_samples= args[3])
+        print("Executing MeanShift...")
+        model2 = MeanShift(bandwidth= args[4])
+        print("Executing Agglomerative...")
+        model3 = AgglomerativeClustering(n_clusters= args[5])
+        print("Executing Spectral...")
+        model4 = SpectralClustering(n_clusters= args[6], gamma= args[7])
+
+        pred1 = model1.fit_predict(data)
+        pred2 = model2.fit_predict(data)
+        pred3 = model3.fit_predict(data)
+        pred4 = model4.fit_predict(data)
+
+        cluster_list = []
+        for p1, p2 in itertools.combinations(range(len(pred1)), 2):
+            nu1 = [pred1[p1], pred2[p1], pred3[p1], pred4[p1]]
+            nu2 = [pred1[p2], pred2[p2], pred3[p2], pred4[p2]]
+
+            if distance_2arrays(nu1, nu2) <= 0.25:
+                flag = 0
+                for pos, cluster in enumerate(cluster_list):
+                    if p1 in cluster:
+                        cluster_list[pos] += (p2,)
+                        flag = 1
+                        break
+                    elif p2 in cluster:
+                        cluster_list[pos] += (p1,)
+                        flag = 1
+                        break
+                
+                if flag == 0:
+                    cluster_list += [(p1, p2)]
+                    break
+
+        cluster_list = join_clusters(cluster_list)
+        
+        pred = [-1 for i in range(len(data))]
+        
+        for cluster in cluster_list:
+            for p in cluster:
+                pred[p] = cluster_list.index(cluster)
+        
+        return np.asarray(pred)
+
     else:
         print(args[1])
         sys.exit("Non recognized algorithm!")
 
     pred = model.fit_predict(data)
-
 
     return pred
 

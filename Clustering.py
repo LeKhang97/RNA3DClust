@@ -79,14 +79,14 @@ if __name__ == "__main__":
     if y[0] != None:
         if y[1]:
             print(f"Writing to {y[0]}", end='\n\n')
-            print(f"Writing to {y[0]}_pymolcmd", end='\n\n')
+            print(f"Writing to {y[0]}_pymolcmd.pml", end='\n\n')
 
         if y[0].split('.')[-1] != 'json':
             outfile1 = y[0] + '.json'
-            outfile2 = y[0] + '_pymolcmd'
+            outfile2 = y[0] + '_pymolcmd.pml'
         else:
             outfile1 = y[0]
-            outfile2 = y[0].replace('.json', '_pymolcmd')
+            outfile2 = y[0].replace('.json', '_pymolcmd.pml')
         
         with open(outfile1, 'w') as outfile:
             json.dump(result, outfile, indent=2, cls=NumpyEncoder)

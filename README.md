@@ -65,7 +65,6 @@ options:
 ### Notes
 - All parameters specified for each algorithm can only be accessed after typing its abbreviation (besides the option -a Algorithm);
 - The input must be in pdb format;
-- There are 2 output files if the output option is chosen. One file is the **JSON file**, which contains the coordinate, the residue number and the label of clusters. The other file contains the **command line for PyMOL GUI** to generate the clusters, which has the same name as the JSON file with the suffix '_pymolcmd.pml' (name ```outfile_pymolcmd.pml``` for example). You can either run it from terminal by this command:
-`pymol outfile_pymolcmd.pml`
-if you already created alias for PyMOL. Or from PyMOL command line, you can try: <br>
+- There are 2 output files if the output option is chosen. One file is the **JSON file**, which contains the coordinate, the residue number and the label of clusters. The other file contains the **command line for PyMOL GUI** to generate the clusters, which has the same name as the JSON file with the suffix '_pymolcmd.pml' (name ```outfile_pymolcmd.pml``` for example). You can either run it from terminal by this command:<br>
+`pymol outfile_pymolcmd.pml` <br> if you already created alias for PyMOL. Or from PyMOL command line, you can try: <br>
 ```@outfile_pymolcmd ```

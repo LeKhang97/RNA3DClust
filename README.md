@@ -13,7 +13,7 @@ There are 2 ways to install the tool:
 Then use this command below to run the docker image:
 ``` docker run -v `pwd`:/workdir/ lequockhang/rna_domain:clustering [options] ```
 
-Whereas `pwd` is your full path to your working directory containing input file(s). Here is the full command for example:
+Whereas `` `pwd` `` is your full path to your working directory containing input file(s). Here is the full command for example:
 
 ``` docker run -v `pwd`:/workdir/ lequockhang/rna_domain:clustering -i Example.pdb -a A -v -o Output```
 

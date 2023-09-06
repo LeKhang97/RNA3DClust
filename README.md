@@ -1,6 +1,36 @@
 # RNA_Domain
 This project aims to build a program to detect domains in RNA 3D structure derived from the PDB database, using several conventional clustering algorithms.
 
+### Prerequisites
+PyMOL version 2.5 or later
+
+### Installation
+There are 2 ways to install the tool:
+
+#### 1.  Using Docker:
+```docker pull lequockhang/rna_domain:clustering ```
+
+Then use this command below to run the docker image:
+``` docker run -v `pwd`:/workdir/ lequockhang/rna_domain:clustering [options] ```
+
+Whereas `pwd` is your full path to your working directory containing input file(s). Here is the full command for example:
+
+``` docker run -v `pwd`:/workdir/ lequockhang/rna_domain:clustering -i Example.pdb -a A -v -o Output```
+
+#### 2.  Using source code:
+```git clone https://github.com/LeKhang97/RNA_Domain```
+
+From here, you can either build it globally or in a virtual environment:
+
+##### 2.1 Build globally:
+```pip3 install -r requirements.txt```
+
+##### 2.2 Build in a virtual environment:
+```make```
+
+Then you can execute the program in virtual environment by:
+```./venv/bin/python3 Clustering.py [options]```
+
 ### Usage
 You can execute the program by:<br>
 ```python3 Clustering.py -i infile -v -a M -o outfile  ```

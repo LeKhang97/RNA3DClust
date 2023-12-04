@@ -40,11 +40,12 @@ def get_coordinate(x):
     
     return xs, ys, zs
 
-def process_pdb(list_format, n = 3, models = True):
+def process_pdb(list_format, n = 3, models = True, get_res = False):
     coor_atoms_C = []
     chains = []
     res_num = []
     result = []
+    res = []
     l = [(0,6),(6,11),(12,16),(16,17),(17,20),(21,22),(22,26),
          (26,27),(30,37),(38,46),(46,54),(54,60),(60,66),(72,76),
           (76,78),(78,80)]
@@ -77,7 +78,12 @@ def process_pdb(list_format, n = 3, models = True):
         res_num += [[int(new_line[6]) for new_line in coor_atoms_C if new_line[5] == chain.split('_')[0]
                             and new_line[16] == ''.join(chain.split('_')[1:])]]
 
-    return result, chains, res_num
+        res += [[new_line[4] for new_line in coor_atoms_C if new_line[5] == chain.split('_')[0] 
+                 and new_line[16] == ''.join(chain.split('_')[1:])]]
+    if get_res:
+        return result, chains, res_num, res
+    else:
+        return result, chains, res_num
 
 def list_to_range(l):
     l = list(set(l))
@@ -105,7 +111,7 @@ def list_to_range(l):
     return l2
 
 def pymol_proccess(pred, res_num, name = None, color = None):
-    if color == None:
+    if color == None    :
         color = ['red', 'green', 'yellow', 'orange', 'blue', 'pink', 'cyan', 'purple', 'white', 'grey', 'brown']    
 
     label_set = list(set(pred))
@@ -171,7 +177,7 @@ def cluster_algo(*args):
         model = MeanShift(bandwidth= args[2])
     elif args[1] == 'A':
         print("Executing Agglomerative...")
-        model = AgglomerativeClustering(n_clusters= args[2])
+        model = AgglomerativeClustering(n_clusters= args[2], distance_threshold= args[3])
     elif args[1] == 'S':
         print("Executing Spectral...")
         model = SpectralClustering(n_clusters= args[2], gamma= args[3])
@@ -181,7 +187,7 @@ def cluster_algo(*args):
         print("Executing MeanShift...")
         model2 = MeanShift(bandwidth= args[4])
         print("Executing Agglomerative...")
-        model3 = AgglomerativeClustering(n_clusters= args[5])
+        model3 = AgglomerativeClustering(n_clusters= args[5], distance_threshold= args[6])
         print("Executing Spectral...")
         model4 = SpectralClustering(n_clusters= args[6], gamma= args[7])
 
@@ -225,6 +231,8 @@ def cluster_algo(*args):
         print(args[1])
         sys.exit("Non recognized algorithm!")
 
+    print(args[2], args[3])
+
     pred = model.fit_predict(data)
 
     return pred
@@ -245,3 +253,104 @@ def check_C(result, threshold):
         return data, [i for i in result[-1] if len(i) >= threshold]
 
     
+def domain_overlap_matrix(lists_label, list_residue = None): #Order in lists_label: ground_truth, prediction 
+    if list_residue == None:
+        list_residue = range(len(lists_label[0]))
+    
+    group_label = {'pred': lists_label[1], 'true': lists_label[0]}
+
+    group_residue = {'pred': {}, 'true': {}}
+
+    for key in group_label.keys():
+        for label in set(group_label[key]):
+            #group_residue[key][label] = list_to_range([lists_residue[key][i] for i in range(len(lists_residue[key])) if lists_label[key][i] == label])
+            group_residue[key][label] = [list_residue[i] for i in range(len(list_residue)) if group_label[key][i] == label]
+
+    domain_matrix = []
+    for label in set(group_label['pred']): 
+        row = []
+        for label2 in set(group_label['true']):
+            row += [len([intersect for intersect in group_residue['pred'][label] if intersect in group_residue['true'][label2]])]
+
+        domain_matrix += [row]
+
+    return domain_matrix
+
+def NDO(domain_matrix, len_domains):
+    domain_matrix = np.asarray(domain_matrix)
+    #print(domain_matrix)
+    sum_col = np.sum(domain_matrix, axis = 0)
+    
+    sum_row =  np.sum(domain_matrix, axis = 1)
+    
+    max_col = np.amax(domain_matrix, axis = 0)
+    
+    max_row = np.amax(domain_matrix, axis = 1)
+    
+    Y = 0
+    for row in range(domain_matrix.shape[0]):
+        Y += 2*max_row[row] - sum_row[row]
+        
+    for col in range(domain_matrix.shape[1]):
+        Y += 2*max_col[col] - sum_col[col]
+
+    score = Y*100/(2*len_domains)
+    
+    return score
+
+def domain_boundary(lists_label, list_residue = None): #Order in lists_label: ground_truth, prediction 
+        if list_residue == None:
+            list_residue = range(len(lists_label[0]))
+        
+        group_label = {'pred': lists_label[1], 'true': lists_label[0]}
+
+        group_residue = {'pred': {}, 'true': {}}
+        
+        group_boundary = {'pred': {}, 'true': {}}
+        
+        for key in group_label.keys():
+            list_boundary = []
+            for label in set(group_label[key]):
+                #group_residue[key][label] = list_to_range([lists_residue[key][i] for i in range(len(lists_residue[key])) if lists_label[key][i] == label])
+                group_residue[key][label] = [ list_to_range(list_residue[i] for i in range(len(list_residue)) if group_label[key][i] == label)]
+            
+            
+                list_boundary += flatten([[(j[0],j[-1]) for j in i] for i in group_residue[key][label]])
+            
+            group_boundary[key] = list_boundary
+            
+        return group_boundary
+
+
+def DBD(lists_label, list_residue = None, threshold = 8):
+    group_boundary = domain_boundary(lists_label, list_residue)
+    
+    num_domains = max(len(group_boundary[key]) for key in group_boundary.keys()) - 1
+    
+    dict_boundary = {}
+    for key in group_boundary.keys():
+        dict_boundary[key] = [ele[0] for ele in group_boundary[key]]
+    
+    score = 0
+    #for i,j in itertools.product(dict_boundary['pred'], dict_boundary['true']):
+    if len(dict_boundary['pred']) >= len(dict_boundary['true']):
+        key1 = 'pred'; key2 = 'true'
+    else:
+        key2 = 'pred'; key1 = 'true'
+    
+    print(dict_boundary)
+    for i in dict_boundary[key1]:
+        max_bound_dist = 0
+        for j in dict_boundary[key2]:
+            if threshold - abs(i - j) >= max_bound_dist:
+                max_bound_dist = threshold - abs(i - j)
+                t = j
+            
+        if i != 0 and t != 0 and max_bound_dist != 100000:
+            score += max_bound_dist
+            print(max_bound_dist, i, t)
+    
+    score = score/(threshold*num_domains)
+    
+    print(num_domains, group_boundary)
+    return score

@@ -6,8 +6,10 @@ import pandas as pd
 import numpy as np
 import math
 import itertools
+import sklearn
 from sklearn.cluster import DBSCAN
-from sklearn.cluster import MeanShift
+
+from Mean_shift import *
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import SpectralClustering
 from sklearn.cluster import AffinityPropagation
@@ -15,6 +17,7 @@ from numpyencoder import NumpyEncoder
 import statistics
 import os
 import json
+import inspect
 
 def flatten(l):
     result = []
@@ -129,7 +132,7 @@ def command_pymol(l, name, color):
     mess = f'select {name}, res '
     for p,r in enumerate(l2):
         if len(r) > 1:
-            mess += f'{r[0]}-{r[-1]+1}'
+            mess += f'{r[0]}-{r[-1]}'
             if p != len(l2) - 1:
                 mess += '+'
         else:
@@ -174,58 +177,16 @@ def cluster_algo(*args):
         model = DBSCAN(eps=args[2], min_samples= args[3])
     elif args[1] == 'M':
         print("Executing MeanShift...")
-        model = MeanShift(bandwidth= args[2])
+        if args[2] > 1:
+            model = MeanShift(bandwidth = args[2], kernel = args[3], adaptive_bandwidth = args[4])
+        else:
+            model = MeanShift(quantile = args[2], kernel = args[3], adaptive_bandwidth = args[4])
     elif args[1] == 'A':
         print("Executing Agglomerative...")
         model = AgglomerativeClustering(n_clusters= args[2], distance_threshold= args[3])
     elif args[1] == 'S':
         print("Executing Spectral...")
         model = SpectralClustering(n_clusters= args[2], gamma= args[3])
-    elif args[1] == 'C':
-        print("Executing DBSCAN...")
-        model1 = DBSCAN(eps=args[2], min_samples= args[3])
-        print("Executing MeanShift...")
-        model2 = MeanShift(bandwidth= args[4])
-        print("Executing Agglomerative...")
-        model3 = AgglomerativeClustering(n_clusters= args[5], distance_threshold= args[6])
-        print("Executing Spectral...")
-        model4 = SpectralClustering(n_clusters= args[6], gamma= args[7])
-
-        pred1 = model1.fit_predict(data)
-        pred2 = model2.fit_predict(data)
-        pred3 = model3.fit_predict(data)
-        pred4 = model4.fit_predict(data)
-
-        cluster_list = []
-        for p1, p2 in itertools.combinations(range(len(pred1)), 2):
-            nu1 = [pred1[p1], pred2[p1], pred3[p1], pred4[p1]]
-            nu2 = [pred1[p2], pred2[p2], pred3[p2], pred4[p2]]
-
-            if distance_2arrays(nu1, nu2) <= 0.25:
-                flag = 0
-                for pos, cluster in enumerate(cluster_list):
-                    if p1 in cluster:
-                        cluster_list[pos] += (p2,)
-                        flag = 1
-                        break
-                    elif p2 in cluster:
-                        cluster_list[pos] += (p1,)
-                        flag = 1
-                        break
-                
-                if flag == 0:
-                    cluster_list += [(p1, p2)]
-                    break
-
-        cluster_list = join_clusters(cluster_list)
-        
-        pred = [-1 for i in range(len(data))]
-        
-        for cluster in cluster_list:
-            for p in cluster:
-                pred[p] = cluster_list.index(cluster)
-        
-        return np.asarray(pred)
 
     else:
         print(args[1])
@@ -267,34 +228,44 @@ def domain_overlap_matrix(lists_label, list_residue = None): #Order in lists_lab
             group_residue[key][label] = [list_residue[i] for i in range(len(list_residue)) if group_label[key][i] == label]
 
     domain_matrix = []
-    for label in set(group_label['pred']): 
+    for label in sorted(set(group_label['pred'])): 
         row = []
-        for label2 in set(group_label['true']):
+        for label2 in sorted(set(group_label['true'])):
             row += [len([intersect for intersect in group_residue['pred'][label] if intersect in group_residue['true'][label2]])]
 
         domain_matrix += [row]
 
-    return domain_matrix
 
-def NDO(domain_matrix, len_domains):
+    min_labels = [min(set(group_label['pred'])), min(set(group_label['true']))]
+    #return domain_matrix
+    return domain_matrix, min_labels
+
+def NDO(domain_matrix, len_rnas, min_labels = [0,0]):
+    #print(domain_matrix, [min_labels[0]**2, min_labels[1]**2])
+    domain_matrix_no_linker = [row[min_labels[1]**2:] for row in domain_matrix[min_labels[0]**2:]]
+    
+    domain_matrix_no_linker = np.asarray(domain_matrix_no_linker)
     domain_matrix = np.asarray(domain_matrix)
-    #print(domain_matrix)
+    
     sum_col = np.sum(domain_matrix, axis = 0)
     
     sum_row =  np.sum(domain_matrix, axis = 1)
     
-    max_col = np.amax(domain_matrix, axis = 0)
+    max_col = np.amax(domain_matrix_no_linker, axis = 0)
     
-    max_row = np.amax(domain_matrix, axis = 1)
+    max_row = np.amax(domain_matrix_no_linker, axis = 1)
     
     Y = 0
-    for row in range(domain_matrix.shape[0]):
-        Y += 2*max_row[row] - sum_row[row]
-        
-    for col in range(domain_matrix.shape[1]):
-        Y += 2*max_col[col] - sum_col[col]
+    print(domain_matrix,domain_matrix_no_linker, sum_col, sum_row, max_col, max_row, sep='\n')
+    for row in range(domain_matrix_no_linker.shape[0]):
 
-    score = Y*100/(2*len_domains)
+        Y += 2*max_row[row] - sum_row[row+min_labels[0]**2]
+        
+    for col in range(domain_matrix_no_linker.shape[1]):
+        Y += 2*max_col[col] - sum_col[col+min_labels[1]**2]
+
+    score = Y*100/(2*(len_rnas - sum_col[0]*(min_labels[1])**2))
+    #score = Y*100/(2*(len_rnas))
     
     return score
 
@@ -354,3 +325,116 @@ def DBD(lists_label, list_residue = None, threshold = 8):
     
     print(num_domains, group_boundary)
     return score
+
+def post_process(cluster_list, res_list = False, outliner_favorable = False):
+    cluster_list2 = cluster_list.copy()
+    if res_list == False:
+        res_list = list(range(len(cluster_list2)))
+    
+    for t in range(6):
+        #ranges contain clusters with ranges, values contain clusters with values
+        min_cluster = (min(set(cluster_list2)))**2
+        list_of_ranges = [list_to_range([v for p,v in enumerate(res_list) if cluster_list2[p] == label]) for label in sorted(set(cluster_list2))]
+        list_of_values = [[v for p,v in enumerate(res_list) if cluster_list2[p] == label] for label in sorted(set(cluster_list2))]
+        
+        pos_ranges = 0
+        
+        pos_to_change = []
+        for ranges in list_of_ranges:
+            for subranges in ranges:
+                c1 = -1; c2 = 9999; label1 = False; label2 = False
+                for values in list_of_values:
+                    if len(subranges) < 100:
+                        # If the residues right before the selected segment exists, label the segment and cluster that contains it
+                        for t1 in range(1,6):
+                            if subranges[0] - t1 in values:
+                                c1 = list_of_values.index(values) 
+                                l1 = [l for l in list_of_ranges[c1] if subranges[0] - t1 in l][0]
+                                label1 = True
+                                break
+
+                        # If the residues right after the selected segment exists, label the segment and cluster that contains it
+                        for t2 in range(1,6):
+                            if subranges[-1] + t2 in values:
+                                c2 = list_of_values.index(values)
+                                l2 = [l for l in list_of_ranges[c2] if subranges[-1] + t2 in l][0]
+                                label2 = True
+                                break
+
+                # If the selected segment is an outliner segment
+                if min_cluster == 1 and pos_ranges == 0:
+                    # If 2 segments on both sides have the same label, label the outliner that label if it's < 30
+                    if c1 == c2:
+                        val = list(sorted(set(cluster_list2)))[c1]
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+
+                    elif label1 and label2:
+                        val1 = list(sorted(set(cluster_list2)))[c1]
+                        val2 = list(sorted(set(cluster_list2)))[c2]
+                        
+                        if val1 != -1 and val2 != -1:
+                            if len(subranges) == 1:
+                                pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+
+                            else:
+                                pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in subranges[:int(len(subranges)/2)]])
+                                pos_to_change += flatten([[(j, val2) for j in range(len(res_list)) if res_list[j] == i] for i in subranges[:int(len(subranges)/2)]])
+                        
+                        elif val1 == -1:
+                            pos_to_change += flatten([[(j, val2) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+                            
+                        elif val2 == -1:
+                            val = list(sorted(set(cluster_list2)))[c1]
+                            pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+                            
+                    elif label1:
+                        val = list(sorted(set(cluster_list2)))[c1]
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+
+                    elif label2:
+                        val = list(sorted(set(cluster_list2)))[c2]
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+
+                # If the selected segment is not an outliner segment
+                else:
+                    if c1 == c2:
+                        val = list(sorted(set(cluster_list2)))[c1]
+                        if val == -1 and len(l1) >= 30 and len(l2) >= 30:
+                            pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+
+                        elif val != -1 and len(l1) + len(l2) >= len(subranges) and len(subranges) < 30:
+                            val = list(sorted(set(cluster_list2)))[c1]
+                            pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+
+
+                    elif label1 and label2:
+                        val1 = list(sorted(set(cluster_list2)))[c1]
+                        val2 = list(sorted(set(cluster_list2)))[c2]
+                        if val1 != -1 and val2 != -1:
+                            if len(l1) >= 30 and len(l2) >= 30:
+                                pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in subranges[:int(len(subranges)/2)]])
+                                pos_to_change += flatten([[(j, val2) for j in range(len(res_list)) if res_list[j] == i] for i in subranges[:int(len(subranges)/2)]])
+
+                        elif val1 == -1 and len(subranges) < 30 and len(l2) >= 30:
+                            pos_to_change += flatten([[(j, val2) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+
+                        elif val2 == -1 and len(subranges) < 30 and len(l1) >= 30:
+                             pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+                            
+                    elif label1:
+                        if len(l1) > len(subranges):
+                            val = list(sorted(set(cluster_list2)))[c1]
+                            pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+
+                    elif label2:
+                        if len(l2) > len(subranges):
+                            val = list(sorted(set(cluster_list2)))[c2]
+                            pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+
+                                    
+            pos_ranges += 1
+        
+        for pos,val in pos_to_change:
+            cluster_list2[pos] = val
+    
+    return cluster_list2    

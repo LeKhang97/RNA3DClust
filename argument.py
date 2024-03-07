@@ -34,9 +34,9 @@ def main_argument():
     
     parser.add_argument('-a', 
 					'--algorithm',
-                    required=True,
-					choices= ['D', 'M', 'A', 'S', 'C'],
-					help="Clustering algorithm. Either: D (DBSCAN); M (MeanShift); A (Agglomerative); S (Spectral)); C (Combined)")
+                    default = 'M',
+					choices = ['D', 'M', 'A', 'S'],
+					help="Clustering algorithm. Either: D (DBSCAN); M (MeanShift) (default); A (Agglomerative); S (Spectral))")
     
     # Subparser for -a D
     parser_a_D = subparsers.add_parser('D', help='Arguments for DBSCAN algorithm')
@@ -45,30 +45,19 @@ def main_argument():
 
     # Subparser for -a M
     parser_a_M = subparsers.add_parser('M', help='Arguments for MeanShift algorithm')
-    parser_a_M.add_argument('-b', type=float, default= None, help='bandwidth') 
-    #parser_a_M.add_argument('-l',  type=str, default= 'euclidean', help='linkage (default = euclidean)')
+    parser_a_M.add_argument('-b', type=float, default= 0.2, help='bandwidth')
+    parser_a_M.add_argument('-k', type= str, default= 'flat', choices = ['flat', 'gaussian'], help='kernel type (default = flat)') 
+    parser_a_M.add_argument('-a', type= str, default= 'False', choices = ['True', 'False'], help= 'recalculate bandwidth after each iteration (default = False)')
 
     # Subparser for -a A
     parser_a_A = subparsers.add_parser('A', help='Arguments for Agglomerative Clustering algorithm')
     parser_a_A.add_argument('-n', type=int, default= 2, help='number of clusters (default = 2)')
-    #parser_a_A.add_argument('-l', type=str, default= 'euclidean', help='linkage (default = euclidean)')
+    parser_a_A.add_argument('-d', type=int, default= None, help='distance_threshold')
 
     # Subparser for -a S
     parser_a_S = subparsers.add_parser('S', help='Arguments for Spectral algorithm')
     parser_a_S.add_argument('-n', type=int, default= 2, help='number of clusters (default = 2)')
     parser_a_S.add_argument('-g', type=float, default= 1, help='gamma (default = 1)')
-
-    # Subparser for -a C
-    parser_a_C = subparsers.add_parser('C', help='Arguments for Combined algorithm')
-    parser_a_C.add_argument('-e', type=float, default= 0.5, help='espilon (default = 0.5) for DBSCAN')
-    parser_a_C.add_argument('-m', type=int, default = 5, help='min samples (default = 5) for DBSCAN')
-    
-    parser_a_C.add_argument('-b', type=float, default= None, help='bandwidth for MeanShift')
-    
-    parser_a_C.add_argument('-na', type=int, default= 2, help='number of clusters (default = 2) for Agglomerative')
-
-    parser_a_C.add_argument('-ns', type=int, default= 2, help='number of clusters (default = 2) for Spectral')
-    parser_a_C.add_argument('-g', type=float, default= 1, help='gamma (default = 1) for Spectral')
 
     args = parser.parse_args()  
     
@@ -79,7 +68,7 @@ def process_args():
     largs = [args.input, args.algorithm]
     largs2 = [args.outfile, args.verbose, args.chain]
 
-    algo_list = ['DBSCAN', 'MeanShift', 'Agglomerative', 'Spectral', 'Combined']
+    algo_list = ['DBSCAN', 'MeanShift', 'Agglomerative', 'Spectral']
     
     algo = [i for i in algo_list if i[0] == args.algorithm][0]
 
@@ -98,15 +87,29 @@ def process_args():
 
     elif args.algorithm == 'M':
         if not hasattr(args, 'b'):
-            args.b = None
+            args.b = 0.2
+        
+        if not hasattr(args, 'k'):
+            args.k = 'flat'
+        if not hasattr(args, 'a'):
+            args.a = False
+
+        elif args.a == 'True':
+            args.a = True
+        
+        elif args.a == 'False':
+            args.a = False
 
         if args.verbose:
-            print(f"b: {args.b}")
-        largs += [args.b]
+            print(f"b: {args.b}, k: {args.k}, a: {args.a}")
+        largs += [args.b, args.k, args.a]
 
     elif args.algorithm == 'A':
-        if not hasattr(args, 'n'):
+        if not hasattr(args, 'n') and not hasattr(args, 'd'):
             args.n = 2
+            args.d = None
+        if hasattr(args, 'd'):
+            args.n = None
 
         if args.verbose:
             print(f"n: {args.n}")
@@ -120,19 +123,6 @@ def process_args():
         if args.verbose:
             print(f"n: {args.n}, g: {args.g}")
         largs += [args.n, args.g]
-    
-    elif args.algorithm == 'C':
-        lst_attr = ['e', 'm', 'b', 'na', 'ns', 'g']
-        lst_default_value = [0.5, 5, None, 2, 2, 1]
-    
-        for i in range(len(lst_attr)):
-            if not hasattr(args, lst_attr[i]):
-                setattr(args, lst_attr[i], lst_default_value[i])
-            
-            if args.verbose:
-                print(f"{lst_attr[i]}: {getattr(args, lst_attr[i])}")
-        
-        largs += [args.e, args.m, args.b, args.na, args.ns, args.g]
 
     else:
         sys.exit("Unrecognized algorithm!")

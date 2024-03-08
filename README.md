@@ -8,14 +8,14 @@ PyMOL version 2.5 or later
 There are 2 ways to install the tool:
 
 #### 1.  Using Docker:
-```docker pull lequockhang/rna_domain:clustering ```
+```docker pull lequockhang/rna3dclust ```
 
 Then use this command below to run the docker image:
-``` docker run -v `pwd`:/workdir/ lequockhang/rna_domain:clustering [options] ```
+``` docker run -v `pwd`:/workdir/ lequockhang/rna3dclust [options] ```
 
 Whereas `` `pwd` `` is your full path to your working directory containing input file(s). Here is the full command for example:
 
-``` docker run -v `pwd`:/workdir/ lequockhang/rna_domain:clustering -i Example.pdb -a A -v -o Output```
+``` docker run -v `pwd`:/workdir/ lequockhang/rna3dclust -i Example.pdb -a A -v -o Output```
 
 #### 2.  Using source code:
 ```git clone https://github.com/LeKhang97/RNA_Domain```

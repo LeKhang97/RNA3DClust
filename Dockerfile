@@ -1,15 +1,18 @@
 FROM ubuntu:focal
-LABEL Maintainer = "lequockhang"
+LABEL Maintainer="lequockhang"
 
-RUN apt-get update -y
-RUN apt-get install -y python3
-RUN apt-get install -y python3-pip
+RUN apt-get update -y \
+    && apt-get install -y python3 \
+    && apt-get install -y python3-pip
 
-WORKDIR  /workdir/
+WORKDIR /workdir/
 
-COPY . /exec
+RUN mkdir exec/
+COPY requirements.txt /workdir/
+COPY . /workdir/exec/
 
-RUN pip3 install -r /exec/requirements.txt
+RUN pip3 install -r requirements.txt
 
-ENTRYPOINT [ "python3", "/exec/Clustering.py" ]
+EXPOSE 5001
 
+ENTRYPOINT ["python3", "/workdir/exec/RNA3Dclust.py"]

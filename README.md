@@ -43,7 +43,6 @@ positional arguments:
     M                   Arguments for MeanShift algorithm
     A                   Arguments for Agglomerative Clustering algorithm
     S                   Arguments for Spectral Clustering algorithm
-    C                   Arguments for Combined algorithm
 
 options:
   -h, --help            show this help message and exit
@@ -55,7 +54,7 @@ options:
                         Lower threshold for sequence length
   -o OUTFILE, --outfile OUTFILE
                         output file.
-  -a {D,M,A,S,C}, --algorithm {D,M,A,S,C}
+  -a {D,M,A,S}, --algorithm {D,M,A,S}
                         Clustering algorithm. Either: D (DBSCAN); M (MeanShift, default); A (Agglomerative); S (Spectral); C (Combined))
 ```
 

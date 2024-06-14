@@ -38,11 +38,12 @@ You can execute the program by:<br/>
 Type ```python3 Clustering.py -h``` for more information of the usage:
 ```
 positional arguments:
-  {D,M,A,S}
+  {D,M,A,S,C}
     D                   Arguments for DBSCAN algorithm
     M                   Arguments for MeanShift algorithm
     A                   Arguments for Agglomerative Clustering algorithm
     S                   Arguments for Spectral Clustering algorithm
+    C                   Arguments for Contact map-based algorithm
 
 options:
   -h, --help            show this help message and exit
@@ -54,8 +55,8 @@ options:
                         Lower threshold for sequence length
   -o OUTFILE, --outfile OUTFILE
                         output file.
-  -a {D,M,A,S}, --algorithm {D,M,A,S}
-                        Clustering algorithm. Either: D (DBSCAN); M (MeanShift, default); A (Agglomerative); S (Spectral); C (Combined))
+  -a {D,M,A,S,C}, --algorithm {D,M,A,S,C}
+                        Clustering algorithm. Either: D (DBSCAN); M (MeanShift, default); A (Agglomerative); S (Spectral); C (Contact map-based))
 ```
 
 - Each algorithm has its default parameters. For example, if you want to check the MeanShift, type ```python3 ./Clustering.py M -h ``` for details. You can also change the parameters, in this case is the bandwidth (-b), by following: <br>

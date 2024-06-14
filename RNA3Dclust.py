@@ -43,12 +43,13 @@ if __name__ == "__main__":
         if len(data) == 0:
             sys.exit("No chain will be proccessed!")
 
-        result = {filename:{}}
-
+        result = {filename:{}} 
         #Check if the user want to cluster all chains together
-        if y[2]:            
+        if y[2]:
             pred = cluster_algo(flatten_np(data[:num_chains]), *x[1:])
-            pred = post_process(pred, res_num)
+            #pred = post_process(pred, res_num)
+            pred = post_process(pred, res_num_array)
+            
             name = filename + '_chain_all_' + C[1][0].split('_')[1]
             pymol_cmd = pymol_proccess(pred, flatten_np(res_num_array[:num_chains]), name)
             print('\n')
@@ -64,8 +65,12 @@ if __name__ == "__main__":
         else:
             for subdata, res_num, i in zip(data, res_num_array, C[1]):
                 pred = cluster_algo(subdata, *x[1:])
-
-                pred = post_process(pred, res_num)
+                if x[1][0] != 'C':
+                    pred = post_process(pred, res_num)
+                else:
+                    flatten_pred = [i for j in pred for i in j]
+                    pred = [c for i in flatten_pred for c in range(len(pred)) if i in pred[c]]
+                    print(len(flatten_pred), len(subdata))
 
                 name = filename + f'_chain_{i}'
                 pymol_cmd = pymol_proccess(pred, res_num, name)

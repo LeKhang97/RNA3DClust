@@ -35,8 +35,8 @@ def main_argument():
     parser.add_argument('-a', 
 					'--algorithm',
                     default = 'M',
-					choices = ['D', 'M', 'A', 'S'],
-					help="Clustering algorithm. Either: D (DBSCAN); M (MeanShift) (default); A (Agglomerative); S (Spectral))")
+					choices = ['D', 'M', 'A', 'S', 'C'],
+					help="Clustering algorithm. Either: D (DBSCAN); M (MeanShift) (default); A (Agglomerative); S (Spectral); C(Contact-based clustering)")
     
     # Subparser for -a D
     parser_a_D = subparsers.add_parser('D', help='Arguments for DBSCAN algorithm')
@@ -59,7 +59,10 @@ def main_argument():
     parser_a_S.add_argument('-n', type=int, default= 2, help='number of clusters (default = 2)')
     parser_a_S.add_argument('-g', type=float, default= 1, help='gamma (default = 1)')
 
-    args = parser.parse_args()  
+    # Subparser for -a C
+    parser_a_C = subparsers.add_parser('C', help='Arguments for Contact-based clustering algorithm')
+    
+    args = parser.parse_args()      
     
     return args
 
@@ -68,7 +71,7 @@ def process_args():
     largs = [args.input, args.algorithm]
     largs2 = [args.outfile, args.verbose, args.chain]
 
-    algo_list = ['DBSCAN', 'MeanShift', 'Agglomerative', 'Spectral']
+    algo_list = ['DBSCAN', 'MeanShift', 'Agglomerative', 'Spectral', 'Contact-based clustering']
     
     algo = [i for i in algo_list if i[0] == args.algorithm][0]
 
@@ -124,6 +127,10 @@ def process_args():
             print(f"n: {args.n}, g: {args.g}")
         largs += [args.n, args.g]
 
+    elif args.algorithm == 'C':
+        if args.verbose:
+            print("No arguments needed for Contact-based clustering")
+            
     else:
         sys.exit("Unrecognized algorithm!")
 

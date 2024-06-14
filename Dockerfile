@@ -7,12 +7,16 @@ RUN apt-get update -y \
 
 WORKDIR /workdir/
 
-RUN mkdir exec/
+#RUN mkdir exec/
+
 COPY requirements.txt /workdir/
-COPY . /workdir/exec/
+#COPY . /workdir/exec/
+COPY . /workdir/
 
 RUN pip3 install -r requirements.txt
 
 EXPOSE 5001
 
-ENTRYPOINT ["python3", "/workdir/exec/RNA3Dclust.py"]
+#ENTRYPOINT ["python3", "exec/RNA3Dclust.py"]
+
+ENTRYPOINT ["python3", "RNA3Dclust.py"]

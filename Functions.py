@@ -1,11 +1,13 @@
 import numpy as np
 import sys
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
 import math
 import itertools
+from matplotlib import cm
 import sklearn
 from sklearn.cluster import DBSCAN
 
@@ -62,7 +64,7 @@ def process_pdb(list_format, n = 3, models = True, get_res = False):
             model = line.replace(' ','')
 
 
-        if "ATOM" in line[:6].replace(" ","") and len(line[17:20].replace(" ","")) == 1 and f"C{n}" in line[12:16]:
+        if "ATOM" in line[:6].replace(" ","") and (len(line[17:20].replace(" ","")) == 1 or line[17:20].replace(" ","")[0] == "D") and f"C{n}" in line[12:16]:
             new_line = [line[v[0]:v[1]].replace(" ","") for v in l ] + [model]
             #print(new_line)
             
@@ -113,17 +115,49 @@ def list_to_range(l):
     
     return l2
 
-def pymol_proccess(pred, res_num, name = None, color = None):
-    if color == None    :
-        color = ['red', 'green', 'yellow', 'orange', 'blue', 'pink', 'cyan', 'purple', 'white', 'grey', 'brown']    
+
+'''def pymol_proccess(pred, res_num, name=None, color=None):
+    if color is None:
+                color = ['red', 'green', 'yellow', 'orange', 'blue', 'pink', 'cyan', 'purple', 'white', 'grey', 
+                         'brown','lightblue', 'lightorange', 'lightpink', 'gold']
 
     label_set = list(set(pred))
+    
+    # Repeat the color list if the number of clusters exceeds the number of colors
+    color = list(itertools.islice(itertools.cycle(color), len(label_set)))
 
     cmd = []
     for num, label in enumerate(label_set):
-        label1 = [res_num[p] for p,v in enumerate(pred) if v == label]
-        clust_name = name + f'_cluster_{num}' if name != None else f'cluster_{num}'
-        cmd += [command_pymol(label1, clust_name, color[num])]
+        label1 = [res_num[p] for p, v in enumerate(pred) if v == label]
+        clust_name = name + f'_cluster_{num}' if name is not None else f'cluster_{num}'
+        cmd.append(command_pymol(label1, clust_name, color[num]))
+
+    return cmd'''
+
+def generate_colors(num_colors):
+    colormap = cm.get_cmap('hsv', num_colors)
+    return [colormap(i) for i in range(num_colors)]
+
+def pymol_proccess(pred, res_num, name=None, color=None):
+    print(len(pred), len(res_num))
+    if color is None:
+        color = ['red', 'green', 'yellow', 'orange', 'blue', 'pink', 'cyan', 'purple', 'white', 'grey', 
+                    'brown','lightblue', 'lightorange', 'lightpink', 'gold']
+
+    label_set = list(set(pred))
+
+    if len(label_set) > len(color):
+        # Generate additional colors dynamically
+        additional_colors = generate_colors(len(label_set) - len(color))
+        # Convert additional colors from RGBA to hex format
+        additional_colors_names = ['{:02d}'.format(i) for i in range(len(color), len(label_set))]
+        color.extend(additional_colors_names)
+
+    cmd = []
+    for num, label in enumerate(label_set):
+        label1 = [res_num[p] for p, v in enumerate(pred) if v == label]
+        clust_name = name + f'_cluster_{num}' if name is not None else f'cluster_{num}'
+        cmd.append(command_pymol(label1, clust_name, color[num]))
 
     return cmd
 
@@ -188,6 +222,11 @@ def cluster_algo(*args):
         print("Executing Spectral...")
         model = SpectralClustering(n_clusters= args[2], gamma= args[3])
 
+    elif args[1] == 'C':
+        print("Executing Contact-based clustering...")
+        pred = contact_map_algo(data)
+        return pred
+        
     else:
         print(args[1])
         sys.exit("Non recognized algorithm!")
@@ -438,3 +477,319 @@ def post_process(cluster_list, res_list = False, outliner_favorable = False):
             cluster_list2[pos] = val
     
     return cluster_list2    
+
+def merge_ele_matrix(mtx, list_range_true, list_range_pred):
+    merged_mtx_row = []
+    for row in mtx:
+        new_row = row.copy()  # Create a copy of the row to avoid modifying the original row
+        for label_pos in range(len(list_range_true)):
+            s = label_pos
+            e = s + len(list_range_true[label_pos])
+            new_row = new_row[:s] + [sum(new_row[s:e])] + new_row[e:]
+        merged_mtx_row.append(new_row)
+    
+    merged_mtx_row = np.array(merged_mtx_row).T.tolist()
+    
+    merged_mtx = []
+    for row in merged_mtx_row:
+        new_row = row.copy()  # Create a copy of the row to avoid modifying the original row
+        for label_pos in range(len(list_range_pred)):
+            s = label_pos
+            e = s + len(list_range_pred[label_pos])
+            new_row = new_row[:s] + [sum(new_row[s:e])] + new_row[e:]
+        merged_mtx.append(new_row)
+
+        
+    merged_mtx = np.array(merged_mtx).T  # Transpose to get the correct shape
+    
+    return merged_mtx
+
+def domain_distance(segment1, segment2):
+    d = abs(min(segment1) - min(segment2))
+    d += abs(max(segment1) - max(segment2))
+    
+    return d/2
+
+def domain_distance_matrix(lists_label, list_residue = None):#Order in lists_label: ground_truth, prediction 
+    if list_residue == None:
+        list_residue = range(len(lists_label[0]))
+    
+    group_label = {'pred': lists_label[1], 'true': lists_label[0]}
+
+    group_residue = {'pred': {}, 'true': {}}
+    for key in group_label.keys():
+        for label in set(group_label[key]):
+            group_residue[key][label] = [list_residue[i] for i in range(len(list_residue)) if group_label[key][i] == label]
+    
+    domain_distance_mtx = []
+    for label1 in sorted(set(group_label['pred'])):
+        for segment1 in list_to_range(group_residue['pred'][label1]):
+            row = []
+            for label2 in sorted(set(group_label['true'])):
+                for segment2 in list_to_range(group_residue['true'][label2]):
+                    #print(segment1, segment2)
+                    x = domain_distance(segment2, segment1)
+                    row += [x]
+                    #print(x, end = '\n\n')
+            
+            domain_distance_mtx += [row]
+    
+    lst_to_range_true = [list_to_range(group_residue['true'][label1]) for label1 in sorted(set(group_label['true']))]
+    lst_to_range_pred = [list_to_range(group_residue['pred'][label1]) for label1 in sorted(set(group_label['pred']))]
+    
+    return domain_distance_mtx, lst_to_range_true, lst_to_range_pred
+
+def DBD(domain_distance_mtx, list_range_true, list_range_pred, threshold = 50):
+    scoring_mtx = []
+    for row in domain_distance_mtx:
+        scoring_mtx += [[threshold - i if i < threshold else 0 for i in row]]
+    
+    merged_scoring_mtx = merge_ele_matrix(scoring_mtx, list_range_true, list_range_pred)
+
+    merged_scoring_mtx = np.asarray(merged_scoring_mtx)
+    scoring_mtx = np.asarray(scoring_mtx)
+    print(merged_scoring_mtx, scoring_mtx, sep = '\n')
+    if scoring_mtx.shape[0] >= scoring_mtx.shape[1]:
+        max_row = np.amax(merged_scoring_mtx, axis = 1)
+        total_score = sum(max_row)/(threshold*scoring_mtx.shape[0])
+    else:
+        max_col = np.amax(merged_scoring_mtx, axis = 0)
+        total_score = sum(max_col)
+        total_score = sum(max_col)/(threshold*scoring_mtx.shape[1])
+    
+    return total_score
+def inf(tup_of_tups, val):
+    start_eles = [min(tup) for tup in tup_of_tups if min(tup) <= val]
+    end_eles = [max(tup) for tup in tup_of_tups if max(tup) <= val]
+    
+    inf_start = max(start_eles) if bool(start_eles) != False else -1
+    inf_end = max(end_eles) if bool(end_eles) != False else -1
+
+    return inf_start, inf_end
+
+def sup(tup_of_tups, val):
+    start_eles = [min(tup) for tup in tup_of_tups if min(tup) >= val]
+    end_eles = [max(tup) for tup in tup_of_tups if max(tup) >= val]
+    
+    sup_start = min(start_eles) if bool(start_eles) != False else val
+    sup_end = min(end_eles) if bool(end_eles) != False else val
+
+    return sup_start, sup_end
+
+def find_tuple_index(tuples, element, order = False):
+    for i, t in enumerate(tuples):
+        if element in t:
+            if order == False:
+                return i
+            else:
+                if order == "first":
+                    if element == t[0]:
+                        return i
+                else:
+                    if element == t[-1]:
+                        return i
+    return -1  # Return -1 if the element is not found in any tuple
+
+def top_down_algo(tup_of_tups, pos_list):
+    tup_of_tups = tuple(tup_of_tups)
+    pos_list = sorted(pos_list)
+    #l = [largest_smaller_than(acc_sum_list, pos) for pos in pos_list]
+    new_tups = []
+    old_tup_of_tups = tup_of_tups
+    #print(tup_of_tups)
+    for ele in pos_list:
+        len_list = [tup[-1] - tup[0] for tup in tup_of_tups]
+        acc_sum_list = list(itertools.accumulate(len_list))
+        
+        inf_start, inf_end = inf(tup_of_tups, ele)
+        sup_start, sup_end = sup(tup_of_tups, ele)
+        X = [i for i in range(len(acc_sum_list)) if acc_sum_list[i] < ele]
+        #ind_inf_end = find_tuple_index(tup_of_tups, inf_end)
+        ind_inf_end = max(X) if bool(X) else -1
+        #print(acc_sum_list, ele,ind_inf_end)
+
+        if ind_inf_end == -1:
+            '''x = (inf_start, inf_start + ele - 0) # need to fix
+            y = (inf_start + ele - 0, sup_end) # need to fix'''
+            x = (tup_of_tups[ind_inf_end+1][0], tup_of_tups[ind_inf_end+1][0] + ele - 0)
+            y = (tup_of_tups[ind_inf_end+1][0] + ele - 0, sup_end)
+            tup_of_tups = tuple( tuple([x,y]) + tup_of_tups[1:])
+        else:
+
+            x = (tup_of_tups[ind_inf_end+1][0], tup_of_tups[ind_inf_end+1][0] + ele - acc_sum_list[ind_inf_end]) # need to fix
+            y = (tup_of_tups[ind_inf_end+1][0] + ele - acc_sum_list[ind_inf_end], tup_of_tups[ind_inf_end+1][1]) # need to fix
+            tup_of_tups = tuple(tup_of_tups[:ind_inf_end+1] +  tuple([x,y]) + tup_of_tups[ind_inf_end + 2:])
+        
+        #print('x,y:', x,y)
+        
+        #print(tup_of_tups)
+        tup_of_tups = tuple([i for i in tup_of_tups if i[0] != i[-1]])
+        
+    new_tups = tuple(i for i in tup_of_tups if i not in old_tup_of_tups)
+
+    print(new_tups)
+    if len(new_tups) == 2:
+        tups1 = tup_of_tups[:tup_of_tups.index(new_tups[0])+1]
+        tups2 = tup_of_tups[tup_of_tups.index(new_tups[1]):]
+    
+    elif len(new_tups) == 3:
+        tups1 = tup_of_tups[:tup_of_tups.index(new_tups[0])+1] + tup_of_tups[tup_of_tups.index(new_tups[2]):]
+        tups2 = tup_of_tups[tup_of_tups.index(new_tups[1]):tup_of_tups.index(new_tups[2])]
+        
+    elif len(new_tups) == 4:
+        tups1 = tup_of_tups[:tup_of_tups.index(new_tups[0])+1] + tup_of_tups[tup_of_tups.index(new_tups[3]):]
+        tups2 = tup_of_tups[tup_of_tups.index(new_tups[1]):tup_of_tups.index(new_tups[2])+1]
+    
+    elif len(new_tups) == 1:
+        tups1 = tup_of_tups[:tup_of_tups.index(new_tups[0])]
+        tups2 = tup_of_tups[tup_of_tups.index(new_tups[0])+1:]
+    
+    else:
+        tups1 = tup_of_tups[:ind_inf_end+2]
+        tups2 = tup_of_tups[ind_inf_end+2:]
+
+    return tups1,tups2
+
+def bot_up_algo(fragments, fragment_indexes):
+    frags = fragments.copy()
+    fragment_inds =  tup_pos_process(fragment_indexes.copy())
+    
+    while True:
+        flag = 1
+        new_frags = frags; new_fragment_inds = fragment_inds
+        for ind1, ind2 in itertools.combinations(range(len(frags)), 2):
+            S = (DISinter(frags[ind1], frags[ind2]) - min(DISintra(fragment_inds[ind1], fragment_inds[ind1]), 
+                                                                 DISintra(fragment_inds[ind2], fragment_inds[ind2])))
+            #print(ind1,ind2,S)
+            if S >= 0:
+                new_fragment_inds = [inds for inds in new_fragment_inds if inds != fragment_inds[ind1] and inds != fragment_inds[ind2]]
+                new_fragment_inds += [fragment_inds[ind1] + fragment_inds[ind2]]
+                
+                new_frags += [np.concatenate((frags[ind1], frags[ind2]), axis=0)]
+                
+                new_frags = [arr for arr in new_frags if not np.array_equal(arr, frags[ind1]) and not np.array_equal(arr, frags[ind2])]
+
+                
+                frags = new_frags
+                fragment_inds = new_fragment_inds
+                flag = 0
+                break
+                
+        if flag == 1:
+            return fragment_inds
+
+def contact_prob(d, d0 = 8, sig = 1.5):
+    p = 1/(1+math.e**((d - d0)/sig))
+    
+    return p
+
+def DISinter(D1, D2, alpha=0.43, d0=8, sig=1.5):
+    D1 = np.array(D1)
+    D2 = np.array(D2)
+
+    dists = np.linalg.norm(D1[:, np.newaxis] - D2, axis=2)
+    probs = contact_prob(dists, d0, sig)
+
+    s = np.sum(probs)
+    s *= 1 / ((len(D1) * len(D2)) ** alpha)
+
+    return s
+
+def DISintra(D, indices = None, beta = 0.95, d0 = 8, sig = 1.5):
+    l = len(D)
+    if indices == None:
+        indices = range(len(D))
+    
+    s = 0
+    for i1, i2 in itertools.combinations(range(len(indices)),2):
+        if abs(indices[i1]-indices[i2]) <= 2:
+            continue
+        
+        d1 = np.array(D[i1]); d2 = np.array(D[i2])
+        
+        d = np.linalg.norm(d2 - d1)
+        p = contact_prob(d,d0,sig)
+        
+        s += p
+    
+    s *= 1/(l**beta)
+    
+    return s
+
+def largest_smaller_than(lst, value):
+    # Initialize variables to store the largest element found and its index
+    largest = None
+    largest_index = -1
+    
+    # Iterate through the list with index
+    for index, elem in enumerate(lst):
+        # Check if the element is smaller than the given value
+        if elem <= value:
+            # If largest is None or current element is larger than largest found so far
+            if largest is None or elem > largest:
+                largest = elem
+                largest_index = index
+    
+    return largest, largest_index,value
+
+def tup_pos_process(tup_of_tup):
+    result = []
+    for tup in tup_of_tup:
+        s = []
+        for i in tup:
+            s += list(range(i[0], i[1]))
+        
+        s = tuple(s)
+        result += [s]
+    
+    return result
+
+def contact_map_algo(original_frags):
+    frags = [original_frags.copy()]
+    frag_ind= [tuple([(0,len(original_frags))])]
+    s = 0
+    while True:
+        flag = 0
+        new_frags = []
+        new_frag_ind = []
+        for frag,ind in zip(frags,frag_ind):
+            DIS2 = {}
+            for position1 in range(30,len(frag)-30):
+                for position2 in range(position1+30,len(frag)-30):
+                    if position2 == None:
+                        continue
+                    d = np.linalg.norm(np.array(frag[position1]) - np.array(frag[position2]))
+                    if d < 8:
+                        DIS2[position1, position2] = DISinter(np.concatenate((frag[:position1], frag[position2:]), axis=0), frag[position1:position2])
+                    for position in [position1, position2]:
+                        if (position,) not in DIS2.keys():
+                            DIS2[position,] = DISinter(frag[:position], frag[position:])             
+
+            if bool(DIS2.keys()) == False:
+                new_frag_ind += tuple([ind])
+                new_frags += [frag]
+                continue
+
+            min_key = min(DIS2, key=DIS2.get)
+            min_value = DIS2[min_key].copy()
+
+            if min_value < DISintra(frag)/2:
+                print('index and key: ', ind, min_key)
+                x = top_down_algo(ind, min_key)
+                print(x)
+                new_frag_ind += x
+                flag = 1
+                new_frags += [np.concatenate([original_frags[i[0]:i[1]] for i in m], axis = 0) for m in x]
+                
+            else:
+                new_frag_ind += tuple([ind])
+                new_frags += [frag]
+
+        frag_ind = new_frag_ind
+        frags = new_frags
+
+        #print(frag_ind)
+        s += 1
+        if flag == 0:
+            result = bot_up_algo(frags, frag_ind)
+            return result

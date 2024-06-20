@@ -21,7 +21,9 @@ if __name__ == "__main__":
                 filename = ''.join(x[0].split('/')[-1]).replace('.pdb', '')
             
             # Create a command file to PyMOL
-            cmd_file = f'load {os.getcwd()}\{filename}.pdb; '
+            #cmd_file = f'load {os.getcwd()}\{filename}.pdb; '
+            cmd_file = f'load {os.getcwd()}\{x[0]}; '
+            #print(cmd_file, f'load {os.getcwd()}\{x[0]}; ')
 
     #Check if the file is error, the result is either empty or if the length of chains is valid
     data, res_num_array  = check_C(C, x[-1])

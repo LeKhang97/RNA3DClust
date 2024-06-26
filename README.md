@@ -60,7 +60,7 @@ options:
 ```
 
 - Each algorithm has its default parameters. For example, if you want to check the MeanShift, type ```python3 ./Clustering.py M -h ``` for details. You can also change the parameters, in this case is the bandwidth (-b), by following: <br>
-``` python3 Clustering.py -i infile -v -a M -o outfile M -b 5```
+``` python3 RNA3Dclust.py -i infile -v -a M -o outfile M -b 5```
 
 ### Notes
 - All parameters specified for each algorithm can only be accessed after typing its abbreviation (besides the option -a Algorithm);

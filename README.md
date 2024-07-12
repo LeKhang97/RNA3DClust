@@ -35,7 +35,7 @@ Then you can execute the program in virtual environment by:
 You can execute the program by:<br/>
 ```python3 RNA3Dclust.py -i infile -v -a M -o outfile  ```
 
-Type ```python3 Clustering.py -h``` for more information of the usage:
+Type ```python3 RNA3Dclust.py -h``` for more information of the usage:
 ```
 positional arguments:
   {D,M,A,S,C}

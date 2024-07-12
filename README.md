@@ -18,7 +18,7 @@ Whereas `` `pwd` `` is your full path to your working directory containing input
 ``` docker run -v `pwd`:/workdir/ lequockhang/rna3dclust -i Example.pdb -a A -v -o Output```
 
 #### 2.  Using source code:
-```git clone https://github.com/LeKhang97/RNA_Domain```
+```git clone https://github.com/LeKhang97/RNA3DClust```
 
 From here, you can either build it globally or in a virtual environment:
 

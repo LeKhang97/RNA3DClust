@@ -39,11 +39,11 @@ Type ```python3 RNA3Dclust.py -h``` for more information of the usage:
 ```
 positional arguments:
   {D,M,A,S,C}
-    D                   Arguments for DBSCAN algorithm
-    M                   Arguments for MeanShift algorithm
-    A                   Arguments for Agglomerative Clustering algorithm
-    S                   Arguments for Spectral Clustering algorithm
-    C                   Arguments for Contact map-based algorithm
+    D                   Arguments for DBSCAN clustering algorithm
+    M                   Arguments for MeanShift clustering algorithm
+    A                   Arguments for Agglomerative clustering algorithm
+    S                   Arguments for Spectral clustering algorithm
+    C                   Arguments for Contact map-based clustering algorithm
 
 options:
   -h, --help            show this help message and exit
@@ -59,7 +59,7 @@ options:
                         Clustering algorithm. Either: D (DBSCAN); M (MeanShift, default); A (Agglomerative); S (Spectral); C (Contact map-based))
 ```
 
-- Each algorithm has its default parameters. For example, if you want to check the MeanShift, type ```python3 ./Clustering.py M -h ``` for details. You can also change the parameters, in this case is the bandwidth (-b), by following: <br>
+- Each algorithm has its default parameters. For example, if you want to check the MeanShift, type ```python3 ./RNA3DClust.py M -h ``` for details. You can also change the parameters, in this case is the bandwidth (-b), by following: <br>
 ``` python3 RNA3Dclust.py -i infile -v -a M -o outfile M -b 5```
 
 ### Notes

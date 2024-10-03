@@ -332,7 +332,7 @@ def domain_boundary(lists_label, list_residue = None): #Order in lists_label: gr
         return group_boundary
 
 
-def DBD(lists_label, list_residue = None, threshold = 8):
+'''def DBD(lists_label, list_residue = None, threshold = 8):
     group_boundary = domain_boundary(lists_label, list_residue)
     
     num_domains = max(len(group_boundary[key]) for key in group_boundary.keys()) - 1
@@ -363,7 +363,7 @@ def DBD(lists_label, list_residue = None, threshold = 8):
     score = score/(threshold*num_domains)
     
     print(num_domains, group_boundary)
-    return score
+    return score'''
 
 def post_process(cluster_list, res_list = False, outliner_favorable = False):
     cluster_list2 = cluster_list.copy()
@@ -558,6 +558,7 @@ def DBD(domain_distance_mtx, list_range_true, list_range_pred, threshold = 50):
         total_score = sum(max_col)/(threshold*scoring_mtx.shape[1])
     
     return total_score
+
 def inf(tup_of_tups, val):
     start_eles = [min(tup) for tup in tup_of_tups if min(tup) <= val]
     end_eles = [max(tup) for tup in tup_of_tups if max(tup) <= val]
@@ -590,7 +591,7 @@ def find_tuple_index(tuples, element, order = False):
                         return i
     return -1  # Return -1 if the element is not found in any tuple
 
-def top_down_algo(tup_of_tups, pos_list):
+'''def top_down_algo(tup_of_tups, pos_list):
     tup_of_tups = tuple(tup_of_tups)
     pos_list = sorted(pos_list)
     #l = [largest_smaller_than(acc_sum_list, pos) for pos in pos_list]
@@ -609,8 +610,6 @@ def top_down_algo(tup_of_tups, pos_list):
         #print(acc_sum_list, ele,ind_inf_end)
 
         if ind_inf_end == -1:
-            '''x = (inf_start, inf_start + ele - 0) # need to fix
-            y = (inf_start + ele - 0, sup_end) # need to fix'''
             x = (tup_of_tups[ind_inf_end+1][0], tup_of_tups[ind_inf_end+1][0] + ele - 0)
             y = (tup_of_tups[ind_inf_end+1][0] + ele - 0, sup_end)
             tup_of_tups = tuple( tuple([x,y]) + tup_of_tups[1:])
@@ -648,7 +647,74 @@ def top_down_algo(tup_of_tups, pos_list):
         tups1 = tup_of_tups[:ind_inf_end+2]
         tups2 = tup_of_tups[ind_inf_end+2:]
 
-    return tups1,tups2
+    return tups1,tups2'''
+
+import itertools
+
+def top_down_algo(tup_of_tups, pos_list):
+    # Convert tuples to lists for faster updates
+    tup_of_tups = list(tup_of_tups)
+    pos_list = sorted(pos_list)
+    
+    new_tups = []
+    old_tup_of_tups = tup_of_tups.copy()
+    
+    # Calculate the initial len_list and acc_sum_list just once
+    len_list = [tup[-1] - tup[0] for tup in tup_of_tups]
+    acc_sum_list = list(itertools.accumulate(len_list))
+    
+    for ele in pos_list:
+        # Only update acc_sum_list incrementally when necessary
+        X = [i for i in range(len(acc_sum_list)) if acc_sum_list[i] < ele]
+        ind_inf_end = max(X) if X else -1
+
+        if ind_inf_end == -1:
+            # Handle case where ind_inf_end == -1
+            x = (tup_of_tups[0][0], tup_of_tups[0][0] + ele)
+            y = (tup_of_tups[0][0] + ele, tup_of_tups[0][1])
+            tup_of_tups[0] = x
+            tup_of_tups.insert(1, y)
+        else:
+            # Split tuple based on cumulative sum
+            x = (tup_of_tups[ind_inf_end+1][0], tup_of_tups[ind_inf_end+1][0] + ele - acc_sum_list[ind_inf_end])
+            y = (tup_of_tups[ind_inf_end+1][0] + ele - acc_sum_list[ind_inf_end], tup_of_tups[ind_inf_end+1][1])
+            tup_of_tups[ind_inf_end+1] = x
+            tup_of_tups.insert(ind_inf_end+2, y)
+
+        # Remove empty tuples in place to avoid redundant filtering
+        tup_of_tups = [tup for tup in tup_of_tups if tup[0] != tup[-1]]
+        
+        # Update len_list and acc_sum_list incrementally
+        len_list = [tup[-1] - tup[0] for tup in tup_of_tups]
+        acc_sum_list = list(itertools.accumulate(len_list))
+    
+    new_tups = [i for i in tup_of_tups if i not in old_tup_of_tups]
+    
+    print(new_tups)
+    
+    # Generate tups1 and tups2 based on the length of new_tups
+    if len(new_tups) == 2:
+        tups1 = tup_of_tups[:tup_of_tups.index(new_tups[0])+1]
+        tups2 = tup_of_tups[tup_of_tups.index(new_tups[1]):]
+    
+    elif len(new_tups) == 3:
+        tups1 = tup_of_tups[:tup_of_tups.index(new_tups[0])+1] + tup_of_tups[tup_of_tups.index(new_tups[2]):]
+        tups2 = tup_of_tups[tup_of_tups.index(new_tups[1]):tup_of_tups.index(new_tups[2])]
+        
+    elif len(new_tups) == 4:
+        tups1 = tup_of_tups[:tup_of_tups.index(new_tups[0])+1] + tup_of_tups[tup_of_tups.index(new_tups[3]):]
+        tups2 = tup_of_tups[tup_of_tups.index(new_tups[1]):tup_of_tups.index(new_tups[2])+1]
+    
+    elif len(new_tups) == 1:
+        tups1 = tup_of_tups[:tup_of_tups.index(new_tups[0])]
+        tups2 = tup_of_tups[tup_of_tups.index(new_tups[0])+1:]
+    
+    else:
+        tups1 = tup_of_tups[:ind_inf_end+2]
+        tups2 = tup_of_tups[ind_inf_end+2:]
+
+    return tuple(tups1), tuple(tups2)
+
 
 def bot_up_algo(fragments, fragment_indexes):
     frags = fragments.copy()
@@ -679,7 +745,7 @@ def bot_up_algo(fragments, fragment_indexes):
             return fragment_inds
 
 def contact_prob(d, d0 = 8, sig = 1.5):
-    p = 1/(1+math.e**((d - d0)/sig))
+    p = 1/(1+np.exp((d - d0)/sig))
     
     return p
 
@@ -744,7 +810,7 @@ def tup_pos_process(tup_of_tup):
     
     return result
 
-def contact_map_algo(original_frags):
+'''def contact_map_algo(original_frags):
     frags = [original_frags.copy()]
     frag_ind= [tuple([(0,len(original_frags))])]
     s = 0
@@ -759,7 +825,7 @@ def contact_map_algo(original_frags):
                     if position2 == None:
                         continue
                     d = np.linalg.norm(np.array(frag[position1]) - np.array(frag[position2]))
-                    if d < 8:
+                    if d < 14:
                         DIS2[position1, position2] = DISinter(np.concatenate((frag[:position1], frag[position2:]), axis=0), frag[position1:position2])
                     for position in [position1, position2]:
                         if (position,) not in DIS2.keys():
@@ -791,5 +857,53 @@ def contact_map_algo(original_frags):
         #print(frag_ind)
         s += 1
         if flag == 0:
+            result = bot_up_algo(frags, frag_ind)
+            return result'''
+
+def contact_map_algo(original_frags):
+    frags = [original_frags.copy()]
+    frag_ind = [tuple([(0, len(original_frags))])]
+    s = 0
+
+    while True:
+        flag = 0
+        new_frags = []
+        new_frag_ind = []
+
+        for frag, ind in zip(frags, frag_ind):
+            # Pre-compute distance matrix for efficiency
+            distances = np.array([[np.linalg.norm(frag[i] - frag[j]) for j in range(len(frag))] for i in range(len(frag))])
+
+            DIS2 = {}
+            for position1 in range(30, len(frag) - 30):
+                for position2 in range(position1 + 30, len(frag) - 30):
+                    if distances[position1, position2] < 8:
+                        DIS2[position1, position2] = DISinter(np.concatenate((frag[:position1], frag[position2:]), axis=0), frag[position1:position2])
+
+            if not DIS2:
+                new_frag_ind.append(ind)
+                new_frags.append(frag)
+                continue
+
+            min_key = min(DIS2, key=DIS2.get)
+            min_value = DIS2[min_key].copy()
+
+            if min_value < DISintra(frag) / 2:
+                print('index and key:', ind, min_key)
+                x = top_down_algo(ind, min_key)
+                print(x)
+                new_frag_ind += x
+                flag = 1
+                new_frags += [np.concatenate([original_frags[i[0]:i[1]] for i in m], axis=0) for m in x]
+            else:
+                new_frag_ind.append(ind)
+                new_frags.append(frag)
+
+        frag_ind = new_frag_ind
+        frags = new_frags
+
+        s += 1
+        if flag == 0:
+            print('perform bot_up_algo')
             result = bot_up_algo(frags, frag_ind)
             return result

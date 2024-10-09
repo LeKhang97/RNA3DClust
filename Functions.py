@@ -21,6 +21,21 @@ import os
 import json
 import inspect
 
+class CustomNumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        # Check for NumPy data types
+        if isinstance(obj, (np.ndarray, np.generic)):  
+            return obj.tolist()  # Convert NumPy arrays and scalars to lists
+            
+        elif isinstance(obj, (np.float64, np.float32, np.float16)):
+            return float(obj)  # Convert NumPy floats to Python floats
+            
+        elif isinstance(obj, (np.int32, np.int64)):
+            return int(obj)  # Convert NumPy ints to Python ints
+            
+        # Add any other NumPy types you want to handle here
+        return super(CustomNumpyEncoder, self).default(obj)
+    
 def flatten(l):
     result = []
     for sublist in l:

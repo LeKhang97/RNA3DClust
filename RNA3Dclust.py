@@ -92,7 +92,7 @@ if __name__ == "__main__":
             outfile2 = y[0].replace('.json', '_pymolcmd.pml')
         
         with open(outfile1, 'w') as outfile:
-            json.dump(result, outfile, indent=2, cls=NumpyEncoder)
+            json.dump(result, outfile, indent=2, cls=CustomNumpyEncoder)
         
         with open(outfile2, 'w') as outfile:
             outfile.write(cmd_file)

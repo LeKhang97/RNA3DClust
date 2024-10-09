@@ -1,4 +1,4 @@
-# RNA_Domain
+# RNA3DClust
 This project aims to build a program to detect domains in RNA 3D structure derived from the PDB database, using several conventional clustering algorithms.
 
 ### Prerequisites

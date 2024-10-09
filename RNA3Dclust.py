@@ -13,8 +13,10 @@ if __name__ == "__main__":
         #Read file
         with open(x[0], 'r') as infile:
             file = infile.read().split('\n')
-            print(y[2])
-            C = process_pdb(file)
+            C = process_pdb(file, atom_type=y[2])
+            if C == False:
+                sys.exit("File is error or chosen atom type is not present!")
+
             if '\\' in x[0]:
                 filename = ''.join(x[0].split('\\')[-1]).replace('.pdb', '')
             else:
@@ -43,47 +45,38 @@ if __name__ == "__main__":
         
         # If the length of all chains is invalid, the program will exit
         if len(data) == 0:
-            sys.exit("No chain will be proccessed!")
+            sys.exit("No chain will be processed!")
 
         result = {filename:{}} 
-        #Check if the user want to cluster all chains together
-        if y[2]:
-            pred = cluster_algo(flatten_np(data[:num_chains]), *x[1:])
-            #pred = post_process(pred, res_num)
-            pred = post_process(pred, res_num_array)
-            
-            name = filename + '_chain_all_' + C[1][0].split('_')[1]
-            pymol_cmd = pymol_proccess(pred, flatten_np(res_num_array[:num_chains]), name)
+                        
+        # Cluster each chain separately
+        for subdata, res_num, i in zip(data, res_num_array, C[1]):
+            pred = cluster_algo(subdata, *x[1:])
+            if x[1][0] != 'C':
+                pred = post_process(pred, res_num)
+            else:
+                flatten_pred = [i for j in pred for i in j]
+                pred = [c for i in flatten_pred for c in range(len(pred)) if i in pred[c]]
+
+            name = filename + f'_chain_{i}'
+            pymol_cmd = pymol_process(pred, res_num, name)
             print('\n')
-            result[filename]['chain_all'] = {'data': flatten_np(data[:num_chains]),
+            result[filename][f'chain_{i}'] = {'data': subdata,
                                             'cluster': pred,
-                                            'res': flatten_np(res_num_array[:num_chains]),
+                                            'res': res_num,
                                             'PyMOL': pymol_cmd
                                             }
+            if i.split('_')[1] == 'MODEL1' or 'MODEL' not in i:
+                cmd_file += '; '.join(pymol_cmd) + ';'
             
-            cmd_file += '; '.join(pymol_cmd)
-                        
-        #If the user want to cluster each chain separately
-        else:
-            for subdata, res_num, i in zip(data, res_num_array, C[1]):
-                pred = cluster_algo(subdata, *x[1:])
-                if x[1][0] != 'C':
-                    pred = post_process(pred, res_num)
-                else:
-                    flatten_pred = [i for j in pred for i in j]
-                    pred = [c for i in flatten_pred for c in range(len(pred)) if i in pred[c]]
-                    print(len(flatten_pred), len(subdata))
-
-                name = filename + f'_chain_{i}'
-                pymol_cmd = pymol_proccess(pred, res_num, name)
-                print('\n')
-                result[filename][f'chain_{i}'] = {'data': subdata,
-                                                'cluster': pred,
-                                                'res': res_num,
-                                                'PyMOL': pymol_cmd
-                                                }
-                if i.split('_')[1] == 'MODEL1' or 'MODEL' not in i:
-                    cmd_file += '; '.join(pymol_cmd) + ';'
+            if y[3]:
+                if y[1]:
+                    print(f'Writing to PDB file(s)', end='\n\n')
+                    
+                name = x[0].replace('.pdb', '')
+                cluster_result = process_cluster_format(pred,
+                                                        res_num)
+                split_pdb_by_clusters(x[0], cluster_result, name, i.replace('_',''))
                 
     #Check if the user want to write the result to a file
     if y[0] != None:

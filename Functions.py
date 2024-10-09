@@ -45,7 +45,7 @@ def get_coordinate(x):
     
     return xs, ys, zs
 
-def process_pdb(list_format, n = 3, models = True, get_res = False):
+def process_pdb(list_format, atom_type = 'C3', models = True, get_res = False):
     coor_atoms_C = []
     chains = []
     res_num = []
@@ -64,7 +64,7 @@ def process_pdb(list_format, n = 3, models = True, get_res = False):
             model = line.replace(' ','')
 
 
-        if "ATOM" in line[:6].replace(" ","") and (len(line[17:20].replace(" ","")) == 1 or line[17:20].replace(" ","")[0] == "D") and f"C{n}" in line[12:16]:
+        if "ATOM" in line[:6].replace(" ","") and (len(line[17:20].replace(" ","")) == 1 or line[17:20].replace(" ","")[0] == "D") and atom_type in line[12:16]:
             new_line = [line[v[0]:v[1]].replace(" ","") for v in l ] + [model]
             #print(new_line)
             
@@ -116,7 +116,7 @@ def list_to_range(l):
     return l2
 
 
-'''def pymol_proccess(pred, res_num, name=None, color=None):
+'''def pymol_process(pred, res_num, name=None, color=None):
     if color is None:
                 color = ['red', 'green', 'yellow', 'orange', 'blue', 'pink', 'cyan', 'purple', 'white', 'grey', 
                          'brown','lightblue', 'lightorange', 'lightpink', 'gold']
@@ -138,7 +138,7 @@ def generate_colors(num_colors):
     colormap = cm.get_cmap('hsv', num_colors)
     return [colormap(i) for i in range(num_colors)]
 
-def pymol_proccess(pred, res_num, name=None, color=None):
+def pymol_process(pred, res_num, name=None, color=None):
     print(len(pred), len(res_num))
     if color is None:
         color = ['red', 'green', 'yellow', 'orange', 'blue', 'pink', 'cyan', 'purple', 'white', 'grey', 
@@ -156,7 +156,7 @@ def pymol_proccess(pred, res_num, name=None, color=None):
     cmd = []
     for num, label in enumerate(label_set):
         label1 = [res_num[p] for p, v in enumerate(pred) if v == label]
-        clust_name = name + f'_cluster_{num}' if name is not None else f'cluster_{num}'
+        clust_name = name + f'cluster_{num+1}' if name is not None else f'cluster_{num+1}'
         cmd.append(command_pymol(label1, clust_name, color[num]))
 
     return cmd
@@ -907,3 +907,63 @@ def contact_map_algo(original_frags):
             print('perform bot_up_algo')
             result = bot_up_algo(frags, frag_ind)
             return result
+
+def process_cluster_format(clust_lst, res_lst = None):
+    if res_lst == None:
+        res_lst = list(range(1,len(clust_lst)+1))
+
+    clust_by_res = []
+    set_clust = set(clust_lst)
+    for clust in set_clust:
+        sublst = []
+        for pos, res in enumerate(res_lst):
+            if clust_lst[pos] ==  clust:
+                sublst += [res]
+
+        clust_by_res += [sublst]
+
+    return clust_by_res
+    
+def split_pdb_by_clusters(pdb_file, clusters, output_prefix, chain=None):
+    """
+    Splits a PDB file into multiple PDB files based on provided clusters of residues.
+    If a chain is specified, only residues from that chain will be processed.
+
+    Parameters:
+        pdb_file (str): Path to the input PDB file.
+        clusters (list of list of int): List of clusters, where each cluster is a list of residue indices.
+        output_prefix (str): Prefix for output files.
+        chain (str, optional): Chain ID to filter residues by. If None, all chains are processed.
+    """
+
+    # Read the PDB file
+    with open(pdb_file, 'r') as file:
+        lines = file.readlines()
+
+    # Create a dictionary to store lines for each cluster
+    cluster_lines = {i: [] for i in range(len(clusters))}
+
+    # Process each line in the PDB file
+    for line in lines:
+        if line.startswith("ATOM") or line.startswith("HETATM"):
+            # Extract residue sequence number and chain ID
+            residue_seq = int(line[22:26].strip())  # Extract residue sequence number
+            residue_chain = line[21:22].strip()  # Extract chain ID (column 22)
+
+            # If a chain is specified, skip lines that don't match the chain
+            if chain and residue_chain != chain:
+                continue
+
+            # Check which cluster this residue belongs to
+            for cluster_index, cluster in enumerate(clusters):
+                if residue_seq in cluster:
+                    cluster_lines[cluster_index].append(line)
+                    break
+
+    # Write the output files for each cluster
+    for cluster_index, cluster in cluster_lines.items():
+        if cluster:
+            output_file = f"{output_prefix}_cluster_{cluster_index + 1}.pdb"
+            with open(output_file, 'w') as outfile:
+                outfile.writelines(cluster)
+            print(f"Wrote {len(cluster)} lines to {output_file}")

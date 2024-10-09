@@ -54,7 +54,9 @@ options:
   -t THRESHOLD, --threshold THRESHOLD
                         Lower threshold for sequence length
   -o OUTFILE, --outfile OUTFILE
-                        output file.
+                        output file in JSON format.
+  -p PDB, --pdb PDB
+                        output file in PDB format.
   -a {D,M,A,S,C}, --algorithm {D,M,A,S,C}
                         Clustering algorithm. Either: D (DBSCAN); M (MeanShift, default); A (Agglomerative); S (Spectral); C (Contact map-based))
 ```

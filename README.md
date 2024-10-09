@@ -50,7 +50,7 @@ options:
   -v, --verbose         verbose mode.
   -i INPUT, --input INPUT
                         input file. Must be in pdb format.
-  -c, --chain           process all chains at once. If not, the program will process each chain individually.
+  -at, --atom_type      Atom types to be considered in the analysis. The default is C3.
   -t THRESHOLD, --threshold THRESHOLD
                         Lower threshold for sequence length
   -o OUTFILE, --outfile OUTFILE

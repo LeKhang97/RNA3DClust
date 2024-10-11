@@ -15,7 +15,7 @@ Then use this command below to run the docker image:
 
 Whereas `` `pwd` `` is your full path to your working directory containing input file(s). Here is the full command for example:
 
-``` docker run -v `pwd`:/workdir/ lequockhang/rna3dclust -i Example.pdb -a A -v -o Output```
+``` docker run -v `pwd`:/workdir/ lequockhang/rna3dclust -i Example.pdb -a A -v -p Output_pdb_name -j Output_json_name```
 
 #### 2.  Using source code:
 ```git clone https://github.com/LeKhang97/RNA3DClust```
@@ -33,7 +33,7 @@ Then you can execute the program in virtual environment by:
 
 ### Usage
 You can execute the program by:<br/>
-```python3 RNA3Dclust.py -i infile -v -a M -o outfile  ```
+```python3 RNA3Dclust.py -i infile -v -a M -o path_for_output ```
 
 Type ```python3 RNA3Dclust.py -h``` for more information of the usage:
 ```
@@ -53,16 +53,21 @@ options:
   -at, --atom_type      Atom types to be considered in the analysis. The default is C3.
   -t THRESHOLD, --threshold THRESHOLD
                         Lower threshold for sequence length
-  -o OUTFILE, --outfile OUTFILE
-                        output file in JSON format.
+  -o OUTPATH, --outpath OUTPATH
+                        path of output for json and pdb files. If not specified, the output will be saved in the current directory.
+
   -p PDB, --pdb PDB
-                        output file in PDB format.
+                        output filename in PDB format.
+
+  -j JSON, --json JSON
+                        output filename in JSON format.
+
   -a {D,M,A,S,C}, --algorithm {D,M,A,S,C}
                         Clustering algorithm. Either: D (DBSCAN); M (MeanShift, default); A (Agglomerative); S (Spectral); C (Contact map-based))
 ```
 
 - Each algorithm has its default parameters. For example, if you want to check the MeanShift, type ```python3 ./RNA3DClust.py M -h ``` for details. You can also change the parameters, in this case is the bandwidth (-b), by following: <br>
-``` python3 RNA3Dclust.py -i infile -v -a M -o outfile M -b 5```
+``` python3 RNA3Dclust.py -i infile -v -a M -o . M -b 5```
 
 ### Notes
 - All parameters specified for each algorithm can only be accessed after typing its abbreviation (besides the option -a Algorithm);

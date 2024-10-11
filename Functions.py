@@ -78,7 +78,6 @@ def process_pdb(list_format, atom_type = 'C3', models = True, get_res = False):
                 break
             model = line.replace(' ','')
 
-
         if "ATOM" in line[:6].replace(" ","") and (len(line[17:20].replace(" ","")) == 1 or line[17:20].replace(" ","")[0] == "D") and atom_type in line[12:16]:
             new_line = [line[v[0]:v[1]].replace(" ","") for v in l ] + [model]
             #print(new_line)
@@ -974,11 +973,5 @@ def split_pdb_by_clusters(pdb_file, clusters, output_prefix, chain=None):
                 if residue_seq in cluster:
                     cluster_lines[cluster_index].append(line)
                     break
-
-    # Write the output files for each cluster
-    for cluster_index, cluster in cluster_lines.items():
-        if cluster:
-            output_file = f"{output_prefix}_cluster_{cluster_index + 1}.pdb"
-            with open(output_file, 'w') as outfile:
-                outfile.writelines(cluster)
-            print(f"Wrote {len(cluster)} lines to {output_file}")
+    
+    return cluster_lines

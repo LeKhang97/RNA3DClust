@@ -27,14 +27,26 @@ def main_argument():
         type= int,
         help ='Lower threshold for sequence length')
 
-    parser.add_argument('-o', '--outfile',
-                #default = None,
-                action ='store',
-                help ='output file.')
-
-    parser.add_argument('-p', '--pdb',
-                    action='store_true',
-                    help='output file(s) in pdb format.')
+    parser.add_argument('-o', '--outpath',
+                nargs='?', 
+                const='.',
+                default= None, 
+                type=str,
+                help ="path of output for json and pdb files. If not specified, the output will be saved in the current directory.")
+    
+    parser.add_argument('-j', '--json', 
+                        type= str, 
+                        nargs = '?', 
+                        const = False, 
+                        default = None, 
+                        help='Name of the output json files. If not specified, its name will be the same as the input file')
+    
+    parser.add_argument('-p', '--pdb', 
+                        type= str, 
+                        nargs = '?', 
+                        const = False, 
+                        default = None, 
+                        help='Name of the output pdb file(s). If not specified, its name will be the same as the input file')
     
     parser.add_argument('-a', 
 					'--algorithm',
@@ -73,7 +85,6 @@ def main_argument():
 def process_args():
     args = main_argument()
     largs = [args.input, args.algorithm]
-    largs2 = [args.outfile, args.verbose, args.atom_type, args.pdb]
 
     algo_list = ['DBSCAN', 'MeanShift', 'Agglomerative', 'Spectral', 'Contact-based clustering']
     
@@ -84,6 +95,21 @@ def process_args():
         print(f"Arguments for {algo}:")
 
         print('Using atom type: ', args.atom_type)
+
+    if args.outpath != None and args.json == None and args.pdb == None:
+        args.json = args.input
+        args.pdb = args.input
+    
+    if args.json == False:
+        args.json = args.input
+
+    if args.pdb == False:
+        args.pdb = args.input
+    
+    if (args.outpath == None) and (args.json != None or args.pdb != None):
+        args.outpath = '.'
+
+    largs2 = [args.outpath, args.verbose, args.atom_type, args.json, args.pdb]
         
     if args.algorithm == 'D':
         if not hasattr(args, 'e'):

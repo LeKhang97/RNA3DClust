@@ -68,34 +68,47 @@ if __name__ == "__main__":
                                             }
             if i.split('_')[1] == 'MODEL1' or 'MODEL' not in i:
                 cmd_file += '; '.join(pymol_cmd) + ';'
-            
-            if y[3]:
-                if y[1]:
-                    print(f'Writing to PDB file(s)', end='\n\n')
-                    
-                name = x[0].replace('.pdb', '')
-                cluster_result = process_cluster_format(pred,
-                                                        res_num)
-                split_pdb_by_clusters(x[0], cluster_result, name, i.replace('_',''))
                 
     #Check if the user want to write the result to a file
     if y[0] != None:
+        target_dir = Path(y[0])
         if y[1]:
-            print(f"Writing to {y[0]}", end='\n\n')
-            print(f"Writing to {y[0]}_pymolcmd.pml", end='\n\n')
+            print(f"Writing to the path {target_dir}", end='\n\n')
+        
+        target_dir.mkdir(parents=True, exist_ok=True)
 
-        if y[0].split('.')[-1] != 'json':
-            outfile1 = y[0] + '.json'
-            outfile2 = y[0] + '_pymolcmd.pml'
-        else:
-            outfile1 = y[0]
-            outfile2 = y[0].replace('.json', '_pymolcmd.pml')
+        if y[3] != None:
+            basename1 = os.path.basename(y[3])
+
+            outfile1 = target_dir / f"{basename1.replace('.json','').replace('.pdb','')}.json"
+            outfile2 = target_dir / f"{basename1.replace('.json','').replace('.pdb','')}_pymolcmd.pml"
+            
+            with open(outfile1, 'w') as outfile:
+                json.dump(result, outfile, indent=2, cls=CustomNumpyEncoder)
         
-        with open(outfile1, 'w') as outfile:
-            json.dump(result, outfile, indent=2, cls=CustomNumpyEncoder)
-        
-        with open(outfile2, 'w') as outfile:
-            outfile.write(cmd_file)
+            with open(outfile2, 'w') as outfile:
+                outfile.write(cmd_file)
+            
+            if y[1]:
+                print(f"Wrote {outfile1} and {outfile2}")
+
+        if y[4] != None:
+            basename2 = os.path.basename(y[4])
+            name = x[0].replace('.pdb', '')
+            for chain in result[filename].keys():
+                pred = result[filename][chain]['cluster']
+                res_num = result[filename][chain]['res']
+                cluster_result = process_cluster_format(pred, res_num)
+                cluster_lines = split_pdb_by_clusters(x[0], cluster_result, name, i.replace('_',''))
+                # Write the output files for each cluster
+
+                for cluster_index, cluster in cluster_lines.items():
+                    if cluster:
+                        output_file = target_dir / f"{basename2.replace('.pdb', '')}_{chain}cluster_{cluster_index + 1}.pdb"
+                        with open(output_file, 'w') as outfile:
+                            outfile.writelines(cluster)
+                        if y[1]:
+                            print(f"Wrote {len(cluster)} lines to {output_file}")
         
         if y[1]:
             print("Writing completed!")

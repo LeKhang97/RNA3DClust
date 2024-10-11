@@ -48,11 +48,15 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   -v, --verbose         verbose mode.
+
   -i INPUT, --input INPUT
                         input file. Must be in pdb format.
+
   -at, --atom_type      Atom types to be considered in the analysis. The default is C3.
+
   -t THRESHOLD, --threshold THRESHOLD
                         Lower threshold for sequence length
+
   -o OUTPATH, --outpath OUTPATH
                         path of output for json and pdb files. If not specified, the output will be saved in the current directory.
 

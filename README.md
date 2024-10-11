@@ -58,7 +58,7 @@ options:
                         Lower threshold for sequence length
 
   -o OUTPATH, --outpath OUTPATH
-                        path of output for json and pdb files. If not specified, the output will be saved in the current directory.
+                        output path for json and pdb files. If not specified, the output will be saved in the current directory.
 
   -p PDB, --pdb PDB
                         output filename in PDB format.

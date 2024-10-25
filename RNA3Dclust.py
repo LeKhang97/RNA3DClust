@@ -52,8 +52,15 @@ if __name__ == "__main__":
         # Cluster each chain separately
         for subdata, res_num, i in zip(data, res_num_array, C[1]):
             pred = cluster_algo(subdata, *x[1:])
+            print(set(pred))
             if x[1][0] != 'C':
+                if y[1]:
+                    if -1 in pred:
+                        print('Noise points detected before post-processing!')
                 pred = post_process(pred, res_num)
+                if y[1]:
+                    if -1 in pred:
+                        print('Noise points detected after post-processing!')
             else:
                 flatten_pred = [i for j in pred for i in j]
                 pred = [c for i in flatten_pred for c in range(len(pred)) if i in pred[c]]

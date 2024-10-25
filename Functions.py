@@ -105,27 +105,27 @@ def process_pdb(list_format, atom_type = 'C3', models = True, get_res = False):
         return result, chains, res_num
 
 def list_to_range(l):
-    l = list(set(l))
+    l = sorted(set(l))  # Sort and remove duplicates, but keep order
     l2 = []
-    s = l[0]
-    for p,v in enumerate(l):
-        if p >= 1:
-            if v == l[p-1] + 1:
-                if p == len(l) - 1:
-                    l2 += [range(s,v+1)]
-                    
-                continue
-                
-            e = l[p-1] + 1
-            l2 += [range(s,e)]
-            s = v
-            
-        if p == len(l) - 1:
-            l2 += [range(s,v+1)]
-    
-    l2 = list(set(l2))
+    s = l[0]  # Start of the first range
 
-    l2 = sorted(l2, key=lambda x: x[0])
+    for p, v in enumerate(l):
+        if p >= 1:
+            # If current number is consecutive with the previous one
+            if v == l[p-1] + 1:
+                # If it's the last element, append the final range
+                if p == len(l) - 1:
+                    l2.append(range(s, v+1))
+                continue
+            
+            # If the sequence breaks, append the current range
+            e = l[p-1] + 1
+            l2.append(range(s, e))
+            s = v  # Start a new range with the current element
+
+        # If it's the last element and not part of a consecutive sequence
+        if p == len(l) - 1:
+            l2.append(range(s, v+1))
     
     return l2
 
@@ -170,8 +170,11 @@ def pymol_process(pred, res_num, name=None, color=None):
     cmd = []
     for num, label in enumerate(label_set):
         label1 = [res_num[p] for p, v in enumerate(pred) if v == label]
-        clust_name = name + f'cluster_{num+1}' if name is not None else f'cluster_{num+1}'
-        cmd.append(command_pymol(label1, clust_name, color[num]))
+        clust_name = name + f'_cluster_{num}' if name is not None else f'cluster_{num}'
+        if label == -1:
+            cmd.append(command_pymol(label1, clust_name,'grey'))
+        else:
+            cmd.append(command_pymol(label1, clust_name, color[num]))
 
     return cmd
 
@@ -226,9 +229,9 @@ def cluster_algo(*args):
     elif args[1] == 'M':
         print("Executing MeanShift...")
         if args[2] > 1:
-            model = MeanShift(bandwidth = args[2], kernel = args[3], adaptive_bandwidth = args[4])
+            model = MeanShift(bandwidth = args[2], kernel = args[3], adaptive_bandwidth = args[4], cluster_all = False)
         else:
-            model = MeanShift(quantile = args[2], kernel = args[3], adaptive_bandwidth = args[4])
+            model = MeanShift(quantile = args[2], kernel = args[3], adaptive_bandwidth = args[4], cluster_all=False)
     elif args[1] == 'A':
         print("Executing Agglomerative...")
         model = AgglomerativeClustering(n_clusters= args[2], distance_threshold= args[3])
@@ -277,26 +280,30 @@ def domain_overlap_matrix(lists_label, list_residue = None): #Order in lists_lab
 
     for key in group_label.keys():
         for label in set(group_label[key]):
-            #group_residue[key][label] = list_to_range([lists_residue[key][i] for i in range(len(lists_residue[key])) if lists_label[key][i] == label])
             group_residue[key][label] = [list_residue[i] for i in range(len(list_residue)) if group_label[key][i] == label]
 
     domain_matrix = []
+    # Compare if pred has more cluster than ref:
+    comp_pred_ref = len(set(group_label['pred'])) - len(set(group_label['true']))
     for label in sorted(set(group_label['pred'])): 
         row = []
         for label2 in sorted(set(group_label['true'])):
             row += [len([intersect for intersect in group_residue['pred'][label] if intersect in group_residue['true'][label2]])]
-
+        if comp_pred_ref > 0:
+            row += [0]*(comp_pred_ref)
         domain_matrix += [row]
-
-
+    
+    if comp_pred_ref < 0:
+        for i in range(-comp_pred_ref):
+            domain_matrix += [[0]*len(set(group_label['true']))]
+    
     min_labels = [min(set(group_label['pred'])), min(set(group_label['true']))]
     #return domain_matrix
     return domain_matrix, min_labels
 
 def NDO(domain_matrix, len_rnas, min_labels = [0,0]):
     #print(domain_matrix, [min_labels[0]**2, min_labels[1]**2])
-    domain_matrix_no_linker = [row[min_labels[1]**2:] for row in domain_matrix[min_labels[0]**2:]]
-    
+    domain_matrix_no_linker = [row[(min_labels[1] == -1):] for row in domain_matrix[(min_labels[0] == -1):]]
     domain_matrix_no_linker = np.asarray(domain_matrix_no_linker)
     domain_matrix = np.asarray(domain_matrix)
     
@@ -309,16 +316,15 @@ def NDO(domain_matrix, len_rnas, min_labels = [0,0]):
     max_row = np.amax(domain_matrix_no_linker, axis = 1)
     
     Y = 0
-    print(domain_matrix,domain_matrix_no_linker, sum_col, sum_row, max_col, max_row, sep='\n')
+    #print(domain_matrix,domain_matrix_no_linker, sum_col, sum_row, max_col, max_row, sep='\n')
     for row in range(domain_matrix_no_linker.shape[0]):
 
-        Y += 2*max_row[row] - sum_row[row+min_labels[0]**2]
+        Y += 2*max_row[row] - sum_row[row+(min_labels[0] == -1)]
         
     for col in range(domain_matrix_no_linker.shape[1]):
-        Y += 2*max_col[col] - sum_col[col+min_labels[1]**2]
+        Y += 2*max_col[col] - sum_col[col+(min_labels[1] == -1)]
 
-    score = Y*100/(2*(len_rnas - sum_col[0]*(min_labels[1])**2))
-    #score = Y*100/(2*(len_rnas))
+    score = Y/(2*(len_rnas - sum_col[0]*(min_labels[1] == -1)))
     
     return score
 
@@ -379,7 +385,7 @@ def domain_boundary(lists_label, list_residue = None): #Order in lists_label: gr
     print(num_domains, group_boundary)
     return score'''
 
-def post_process(cluster_list, res_list = False, outliner_favorable = False):
+def post_process(cluster_list, res_list = False):
     cluster_list2 = cluster_list.copy()
     if res_list == False:
         res_list = list(range(len(cluster_list2)))
@@ -397,7 +403,8 @@ def post_process(cluster_list, res_list = False, outliner_favorable = False):
             for subranges in ranges:
                 c1 = -1; c2 = 9999; label1 = False; label2 = False
                 for values in list_of_values:
-                    if len(subranges) < 100:
+                    #if len(subranges) < 100:
+                    if True:
                         # If the residues right before the selected segment exists, label the segment and cluster that contains it
                         for t1 in range(1,6):
                             if subranges[0] - t1 in values:
@@ -429,7 +436,7 @@ def post_process(cluster_list, res_list = False, outliner_favorable = False):
                             if len(subranges) == 1:
                                 pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
 
-                            else:
+                            elif len(subranges) < 10:
                                 pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in subranges[:int(len(subranges)/2)]])
                                 pos_to_change += flatten([[(j, val2) for j in range(len(res_list)) if res_list[j] == i] for i in subranges[:int(len(subranges)/2)]])
                         
@@ -441,12 +448,14 @@ def post_process(cluster_list, res_list = False, outliner_favorable = False):
                             pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
                             
                     elif label1:
-                        val = list(sorted(set(cluster_list2)))[c1]
-                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
-
+                        if len(subranges) not in range(10,100) and len(l1) >= 30:
+                            val = list(sorted(set(cluster_list2)))[c1]
+                            pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+                    
                     elif label2:
-                        val = list(sorted(set(cluster_list2)))[c2]
-                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+                        if len(subranges) not in range(10,100) and len(l2) >= 30:
+                            val = list(sorted(set(cluster_list2)))[c2]
+                            pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
 
                 # If the selected segment is not an outliner segment
                 else:
@@ -562,7 +571,7 @@ def DBD(domain_distance_mtx, list_range_true, list_range_pred, threshold = 50):
 
     merged_scoring_mtx = np.asarray(merged_scoring_mtx)
     scoring_mtx = np.asarray(scoring_mtx)
-    print(merged_scoring_mtx, scoring_mtx, sep = '\n')
+    #print(merged_scoring_mtx, scoring_mtx, sep = '\n')
     if scoring_mtx.shape[0] >= scoring_mtx.shape[1]:
         max_row = np.amax(merged_scoring_mtx, axis = 1)
         total_score = sum(max_row)/(threshold*scoring_mtx.shape[0])
@@ -572,6 +581,18 @@ def DBD(domain_distance_mtx, list_range_true, list_range_pred, threshold = 50):
         total_score = sum(max_col)/(threshold*scoring_mtx.shape[1])
     
     return total_score
+
+def DCS(truth,pred, outliner = False):
+    if outliner == False:
+        truth = [i for i in truth if i != -1]
+        pred =  [i for i in pred if i != -1]
+    
+    count_truth = len(set(truth))
+    count_pred = len(set(pred))
+    
+    DCS = (max((count_truth), count_pred) - abs(count_truth - count_pred))/max(count_truth, count_pred)
+    
+    return DCS
 
 def inf(tup_of_tups, val):
     start_eles = [min(tup) for tup in tup_of_tups if min(tup) <= val]

@@ -170,10 +170,11 @@ def pymol_process(pred, res_num, name=None, color=None):
     cmd = []
     for num, label in enumerate(label_set):
         label1 = [res_num[p] for p, v in enumerate(pred) if v == label]
-        clust_name = name + f'_cluster_{num}' if name is not None else f'cluster_{num}'
         if label == -1:
+            clust_name = name + f'_outlier' if name is not None else f'outlier'
             cmd.append(command_pymol(label1, clust_name,'grey'))
         else:
+            clust_name = name + f'_cluster_{num+1}' if name is not None else f'cluster_{num+1}'
             cmd.append(command_pymol(label1, clust_name, color[num]))
 
     return cmd

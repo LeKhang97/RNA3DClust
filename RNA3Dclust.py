@@ -105,6 +105,10 @@ if __name__ == "__main__":
             for chain in result[filename].keys():
                 pred = result[filename][chain]['cluster']
                 res_num = result[filename][chain]['res']
+
+                res = [res_num[i] for i in range(len(pred)) if pred[i] != -1]
+                pred = [i for i in pred if i != -1]
+
                 cluster_result = process_cluster_format(pred, res_num)
                 cluster_lines = split_pdb_by_clusters(x[0], cluster_result, name, i.replace('_',''))
                 # Write the output files for each cluster

@@ -1,8 +1,7 @@
-from argument import *
+from src.argument import *
 
 if __name__ == "__main__":
     x, y  = process_args()  #Check argument.py for more details
-        
     #Check if file or file path exists
     if Path(x[0]).exists() == False:
         sys.exit("Filename does not exist!")
@@ -14,6 +13,7 @@ if __name__ == "__main__":
         with open(x[0], 'r') as infile:
             file = infile.read().split('\n')
             C = process_pdb(file, atom_type=y[2])
+
             if C == False:
                 sys.exit("File is error or chosen atom type is not present!")
 
@@ -28,15 +28,18 @@ if __name__ == "__main__":
             #print(cmd_file, f'load {os.getcwd()}\{x[0]}; ')
 
     #Check if the file is error, the result is either empty or if the length of chains is valid
-    data, res_num_array  = check_C(C, x[-1])
+    data, res_num_array, removed_chain_index  = check_C(C, x[-1])
+
+    remaining_chains = [C[1][i] for i in range(len(C[1])) if i not in removed_chain_index]
+    
     if data ==  False:
         sys.exit("File is error!")
     else:
-        models = set([''.join(i.split('_')[1]) for i in C[1]])
+        models = set([''.join(i.split('_')[1]) for i in remaining_chains])
         if bool(models):
-            num_chains = len([i for i in C[1] if ''.join(i.split('_')[1]) == list(models)[0]])
+            num_chains = len([i for i in remaining_chains if ''.join(i.split('_')[1]) == list(models)[0]])
         else:
-            num_chains = len(C[1])
+            num_chains = len(remaining_chains)
         
         if y[1]:
             print("Number of models: ", len(models))
@@ -50,23 +53,27 @@ if __name__ == "__main__":
         result = {filename:{}} 
                         
         # Cluster each chain separately
-        for subdata, res_num, i in zip(data, res_num_array, C[1]):
+        for subdata, res_num, i in zip(data, res_num_array, remaining_chains):
             pred = cluster_algo(subdata, *x[1:])
-            print(set(pred))
             if x[1][0] != 'C':
-                if y[1]:
-                    if -1 in pred:
-                        print('Noise points detected before post-processing!')
                 pred = post_process(pred, res_num)
-                if y[1]:
-                    if -1 in pred:
-                        print('Noise points detected after post-processing!')
             else:
                 flatten_pred = [i for j in pred for i in j]
                 pred = [c for i in flatten_pred for c in range(len(pred)) if i in pred[c]]
 
-            name = filename + f'_chain_{i}'
-            pymol_cmd = pymol_process(pred, res_num, name)
+            
+            num_clusters = len(set(i for i in pred if i != -1))
+            outlier = 'with' if -1 in pred else 'without'
+            chain = i.replace('_','')
+            name = filename + f'_chain_{chain}'
+
+            print(f'Chain {chain} has {num_clusters} clusters and {outlier} outliers.')
+
+            for k in range(num_clusters):
+                print(f'Number of residues of cluster {k+1}: {len([j for j in pred if j == k])}')
+                print(f'Cluster {k+1} positions:\n {list_to_range([res_num[j] for j in range(len(pred)) if pred[j] == k])}\n')
+            
+            pymol_cmd = pymol_process(pred, res_num, name, verbose = y[1])
             print('\n')
             result[filename][f'chain_{i}'] = {'data': subdata,
                                             'cluster': pred,
@@ -75,6 +82,21 @@ if __name__ == "__main__":
                                             }
             if i.split('_')[1] == 'MODEL1' or 'MODEL' not in i:
                 cmd_file += '; '.join(pymol_cmd) + ';'
+
+        if y[5]:
+            with open(y[5], 'r') as ref_file:
+                ref_file = json.load(ref_file)
+            
+            for chain in result[filename]:
+                pred_clusters = result[filename][chain]['cluster']
+                if 'cluster' in ref_file[filename].keys():
+                    ref_domains = ref_file[filename]['cluster']
+                else:
+                    ref_domains = ref_file[filename][chain]['cluster']
+                
+                dcs_score = DCS(ref_domains, pred_clusters)
+                print(f"DCS Score for {chain}: {dcs_score:.4f}")
+                
                 
     #Check if the user want to write the result to a file
     if y[0] != None:
@@ -109,9 +131,10 @@ if __name__ == "__main__":
                 res = [res_num[i] for i in range(len(pred)) if pred[i] != -1]
                 pred = [i for i in pred if i != -1]
 
-                cluster_result = process_cluster_format(pred, res_num)
-                cluster_lines = split_pdb_by_clusters(x[0], cluster_result, name, i.replace('_',''))
+                cluster_result = process_cluster_format(pred, res)
+                cluster_lines = split_pdb_by_clusters(x[0], cluster_result, name, chain.split('_')[1])
                 # Write the output files for each cluster
+
 
                 for cluster_index, cluster in cluster_lines.items():
                     if cluster:

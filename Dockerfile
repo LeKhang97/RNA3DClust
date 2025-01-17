@@ -1,22 +1,16 @@
-FROM ubuntu:focal
+# Use a lightweight Python base image
+FROM python:3.9-slim
 LABEL Maintainer="lequockhang"
 
-RUN apt-get update -y \
-    && apt-get install -y python3 \
-    && apt-get install -y python3-pip
-
+# Set the working directory in the container
 WORKDIR /workdir/
 
-#RUN mkdir exec/
-
+# Install dependencies
 COPY requirements.txt /workdir/
-#COPY . /workdir/exec/
+
 COPY . /workdir/
 
-RUN pip3 install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-EXPOSE 5001
-
-#ENTRYPOINT ["python3", "exec/RNA3Dclust.py"]
-
+# Set the entry point to run the program as a module
 ENTRYPOINT ["python3", "RNA3Dclust.py"]

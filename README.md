@@ -11,11 +11,11 @@ There are 2 ways to install the tool:
 ```docker pull lequockhang/rna3dclust ```
 
 Then use this command below to run the docker image:
-``` docker run -v `pwd`:/workdir/ lequockhang/rna3dclust [options] ```
+``` docker run -v `pwd`:/workdir/test lequockhang/rna3dclust [options] ```
 
 Whereas `` `pwd` `` is your full path to your working directory containing input file(s). Here is the full command for example:
 
-``` docker run -v `pwd`:/workdir/ lequockhang/rna3dclust -i Example.pdb -a A -v -p Output_pdb_name -j Output_json_name```
+``` docker run -v `pwd`:/workdir/test lequockhang/rna3dclust -i Example.pdb -a A -v -p Output_pdb_name -j Output_json_name```
 
 #### 2.  Using source code:
 ```git clone https://github.com/LeKhang97/RNA3DClust```

@@ -1,6 +1,6 @@
 ![Version](https://img.shields.io/badge/Version-1.0.0-blue)
-[![Docker supported](https://img.shields.io/badge/Docker-Supported-brightgreen)](https://github.com/LeKhang97/RNA3DClust/blob/main/Dockerfile)
 [![Platform](https://img.shields.io/badge/Platform-Linux-blueviolet)](https://evryrna.ibisc.univ-evry.fr/evryrna/RNA3DClust/home)
+[![Docker supported](https://img.shields.io/badge/Docker-Supported-brightgreen)](https://github.com/LeKhang97/RNA3DClust/blob/main/Dockerfile)
 [![License](https://img.shields.io/badge/License-MIT-informational.svg)](https://github.com/LeKhang97/RNA3DClust/blob/main/LICENSE)
 [![DOI](https://img.shields.io/badge/DOI-10.1101%2F2025.01.12.632579-yellow)](https://doi.org/10.1101/2025.01.12.632579)
 

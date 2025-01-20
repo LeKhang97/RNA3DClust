@@ -11,31 +11,27 @@ This project aims to build a program to detect domains in RNA 3D structure deriv
 PyMOL version 2.5 or later
 
 ### Installation
-There are 2 ways to install the tool:
+There are two ways to install RNA3DClust:
 
-#### 1.  Using Docker:
-```docker pull lequockhang/rna3dclust ```
+1. Using Docker:  
+```docker pull lequockhang/rna3dclust ```  
+Then use this command below to run the docker image:  
+```docker run -v `pwd`:/workdir/test lequockhang/rna3dclust [options] ```  
+where `` `pwd` `` is your full path to your working directory containing input file(s).  
+Here is the full command for example:  
+```docker run -v `pwd`:/workdir/test lequockhang/rna3dclust -i Example.pdb -a A -v -p Output_pdb_name -j Output_json_name```
 
-Then use this command below to run the docker image:
-``` docker run -v `pwd`:/workdir/test lequockhang/rna3dclust [options] ```
-
-Whereas `` `pwd` `` is your full path to your working directory containing input file(s). Here is the full command for example:
-
-``` docker run -v `pwd`:/workdir/test lequockhang/rna3dclust -i Example.pdb -a A -v -p Output_pdb_name -j Output_json_name```
-
-#### 2.  Using source code:
-```git clone https://github.com/LeKhang97/RNA3DClust```
-
+3. Using source code:  
+```git clone https://github.com/LeKhang97/RNA3DClust```  
 From here, you can either build it globally or in a virtual environment:
 
-##### 2.1 Build globally:
-```pip3 install -r requirements.txt```
+    * Build globally:  
+    ```pip3 install -r requirements.txt```
 
-##### 2.2 Build in a virtual environment:
-```make```
-
-Then you can execute the program in virtual environment by:
-```./venv/bin/python3 RNA3Dclust.py [options]```
+    * Build in a virtual environment:  
+    ```make```  
+    Then you can execute the program in virtual environment by:  
+    ```./venv/bin/python3 RNA3Dclust.py [options]```
 
 ### Usage
 You can execute the program by:<br/>

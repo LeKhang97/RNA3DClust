@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/License-MIT-informational.svg)](https://github.com/LeKhang97/RNA3DClust/blob/main/LICENSE)
 [![DOI](https://img.shields.io/badge/DOI-10.1101%2F2025.01.12.632579-yellow)](https://doi.org/10.1101/2025.01.12.632579)
 
-# RNA3DClust: segmentation of RNA three-dimensional structures using a clustering-based approach
+# RNA3DClust: unsupervised segmentation of RNA 3D structure using density-based clustering
 ![Preview](https://evryrna2.ibisc.univ-evry.fr/RNA3DClust.png)
 
 ### Prerequisites

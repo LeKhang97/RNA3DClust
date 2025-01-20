@@ -1,3 +1,8 @@
+[![Docker supported](https://img.shields.io/badge/Docker-Supported-brightgreen)](https://forge.ibisc.univ-evry.fr/EvryRNA/C-RCPred/blob/master/Dockerfile)
+[![Platforms](https://img.shields.io/badge/Platforms-Web%20Linux-blueviolet)](https://evryrna.ibisc.univ-evry.fr/evryrna/C-RCPred/rcpredct_tryonline)
+[![GitLab repo](https://img.shields.io/badge/Repo-GitLab-orange.svg)](https://forge.ibisc.univ-evry.fr/EvryRNA/C-RCPred/tree/master)
+[![License](https://img.shields.io/badge/License-MIT-informational.svg)](https://forge.ibisc.univ-evry.fr/EvryRNA/C-RCPred/blob/master/LICENSE)
+
 # RNA3DClust
 This project aims to build a program to detect domains in RNA 3D structure derived from the PDB database, using several conventional clustering algorithms.
 

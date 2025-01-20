@@ -1,6 +1,6 @@
 # Use a lightweight Python base image
 FROM python:3.9-slim
-LABEL Maintainer="lequockhang"
+LABEL Maintainer="quoc-khang.le@universite-paris-saclay.fr"
 
 # Set the working directory in the container
 WORKDIR /workdir/

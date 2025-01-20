@@ -6,7 +6,7 @@
 [![DOI](https://img.shields.io/badge/DOI-10.1101%2F2025.01.12.632579-yellow)](https://doi.org/10.1101/2025.01.12.632579)
 
 # RNA3DClust
-This project aims to build a program to detect domains in RNA 3D structure derived from the PDB database, using several conventional clustering algorithms.
+![Preview](https://evryrna2.ibisc.univ-evry.fr/RNA3DClust.png)
 
 ### Prerequisites
 PyMOL version 2.5 or later

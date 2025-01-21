@@ -5,6 +5,11 @@ LABEL Maintainer="quoc-khang.le@universite-paris-saclay.fr"
 # Set the working directory in the container
 WORKDIR /workdir/
 
+RUN useradd -ms /bin/bash dockeruser
+
+# Switch to the non-root user
+USER dockeruser
+
 # Install dependencies
 COPY requirements.txt /workdir/
 

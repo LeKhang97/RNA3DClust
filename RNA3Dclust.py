@@ -31,7 +31,7 @@ if __name__ == "__main__":
     data, res_num_array, removed_chain_index  = check_C(C, x[-1])
 
     remaining_chains = [C[1][i] for i in range(len(C[1])) if i not in removed_chain_index]
-    
+
     if data ==  False:
         sys.exit("File is error!")
     else:
@@ -43,18 +43,35 @@ if __name__ == "__main__":
         
         if y[1]:
             print("Number of models: ", len(models))
-            print("Models: ", models, end='\n\n')
+            if models == set(['']):
+                print("Model's name has not been specified")
+            else:
+                print("Models: ", sorted(models), end='\n\n')
             print("Number of chains: ", num_chains, end='\n\n')
         
         # If the length of all chains is invalid, the program will exit
         if len(data) == 0:
-            sys.exit("No chain will be processed!")
+            sys.exit("No chain will be processed!") 
 
         result = {filename:{}} 
                         
         # Cluster each chain separately
+        old_model = ''
         for subdata, res_num, i in zip(data, res_num_array, remaining_chains):
-            pred = cluster_algo(subdata, *x[1:])
+            if 'MODEL' in i:
+                chain = i.split('_')[0]
+                model = i.split('_')[1]
+
+            else:
+                model = ''
+                chain = i.replace('_','')
+            
+            if model != old_model:
+                print(model)
+                old_model = model
+
+            name = filename + f'_chain_{chain}'
+            pred = cluster_algo(subdata, *x[1:], chain)
             if x[1][0] != 'C':
                 pred = post_process(pred, res_num)
             else:
@@ -64,15 +81,26 @@ if __name__ == "__main__":
             
             num_clusters = len(set(i for i in pred if i != -1))
             outlier = 'with' if -1 in pred else 'without'
-            chain = i.replace('_','')
-            name = filename + f'_chain_{chain}'
 
+            # Print the number of clusters and the presence of outliers
+            msg = 'Output information:'
+            decorate_message(msg)
             print(f'Chain {chain} has {num_clusters} clusters and {outlier} outliers.')
 
-            for k in range(num_clusters):
-                print(f'Number of residues of cluster {k+1}: {len([j for j in pred if j == k])}')
-                print(f'Cluster {k+1} positions:\n {list_to_range([res_num[j] for j in range(len(pred)) if pred[j] == k])}\n')
+            # Print the number of residues in each cluster and their positions
+            for h,k in enumerate(set(j for j in pred if j != -1)):
+                range_pos = list_to_range([res_num[j] for j in range(len(pred)) if pred[j] == k])
+                mess_pos = ''.join(f'{j[0]}-{j[-1]}; ' for j in range_pos)
+                print(f'Number of residues of cluster {h+1}: {len([j for j in pred if j == k])}')
+                print(f'Cluster {h+1} positions:\n{mess_pos}\n')
             
+            # If there are outliers, print the number of outliers and their positions
+            if -1 in pred:
+                range_pos = list_to_range([res_num[j] for j in range(len(pred)) if pred[j] == -1])
+                mess_pos = ''.join(f'{j[0]}-{j[-1]}; ' for j in range_pos)
+                print(f'Number of residues of outliers: {len([j for j in pred if j == -1])}')
+                print(f'Outliers positions:\n{mess_pos}\n')
+
             pymol_cmd = pymol_process(pred, res_num, name, verbose = y[1])
             print('\n')
             result[filename][f'chain_{i}'] = {'data': subdata,
@@ -102,6 +130,8 @@ if __name__ == "__main__":
     if y[0] != None:
         target_dir = Path(y[0])
         if y[1]:
+            msg = 'Exporting output:'
+            decorate_message(msg)
             print(f"Writing to the path {target_dir}", end='\n\n')
         
         target_dir.mkdir(parents=True, exist_ok=True)

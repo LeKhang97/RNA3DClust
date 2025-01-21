@@ -35,6 +35,11 @@ class CustomNumpyEncoder(json.JSONEncoder):
         # Add any other NumPy types you want to handle here
         return super(CustomNumpyEncoder, self).default(obj)
     
+def decorate_message(mess, cover_by = '='):
+    print(cover_by*len(mess))
+    print(mess)
+    print(cover_by*len(mess))
+    
 def flatten(l):
     result = []
     for sublist in l:
@@ -129,24 +134,6 @@ def list_to_range(l):
     
     return l2
 
-'''def pymol_process(pred, res_num, name=None, color=None):
-    if color is None:
-                color = ['red', 'green', 'yellow', 'orange', 'blue', 'pink', 'cyan', 'purple', 'white', 'grey', 
-                         'brown','lightblue', 'lightorange', 'lightpink', 'gold']
-
-    label_set = list(set(pred))
-    
-    # Repeat the color list if the number of clusters exceeds the number of colors
-    color = list(itertools.islice(itertools.cycle(color), len(label_set)))
-
-    cmd = []
-    for num, label in enumerate(label_set):
-        label1 = [res_num[p] for p, v in enumerate(pred) if v == label]
-        clust_name = name + f'_cluster_{num}' if name is not None else f'cluster_{num}'
-        cmd.append(command_pymol(label1, clust_name, color[num]))
-
-    return cmd'''
-
 def generate_colors(num_colors):
     colormap = cm.get_cmap('hsv', num_colors)
     return [colormap(i) for i in range(num_colors)]
@@ -167,7 +154,8 @@ def pymol_process(pred, res_num, name=None, color=None, verbose=False):
 
     cmd = []
     if verbose:
-        print('\nCommand for PyMOL:')
+        msg = 'Command for PyMOL:'
+        decorate_message(msg)
     for num, label in enumerate(label_set):
         label1 = [res_num[p] for p, v in enumerate(pred) if v == label]
         if label == -1:
@@ -226,40 +214,40 @@ def join_clusters(list_cluster):
 
 def cluster_algo(*args):
     data = args[0]
+    print('-'*40)
     if args[1] == 'D':
-        print("Executing DBSCAN...")
+        print(f"Executing DBSCAN on chain {args[-1]}...")
         model = DBSCAN(eps=args[2], min_samples= args[3])
     elif args[1] == 'M':
-        print("Executing MeanShift...")
+        print(f"Executing MeanShift on chain {args[-1]}...")
         if args[2] > 1:
-            model = MeanShift(bandwidth = args[2], kernel = args[3], adaptive_bandwidth = args[4], cluster_all = False)
+            model = MeanShift(bandwidth = args[2], kernel = args[3], cluster_all = False)
         else:
-            model = MeanShift(quantile = args[2], kernel = args[3], adaptive_bandwidth = args[4], cluster_all=False)
+            model = MeanShift(quantile = args[2], kernel = args[3], cluster_all=False)
     elif args[1] == 'A':
-        print("Executing Agglomerative...")
+        print(f"Executing Agglomerative on chain {args[-1]}...")
         model = AgglomerativeClustering(n_clusters= args[2], distance_threshold= args[3])
     elif args[1] == 'S':
-        print("Executing Spectral...")
+        print(f"Executing Spectral on chain {args[-1]}...")
         model = SpectralClustering(n_clusters= args[2], gamma= args[3])
 
     elif args[1] == 'C':
-        print("Executing Contact-based clustering...")
+        print(f"Executing Contact-based clustering on chain {args[-1]}...")
         pred = contact_map_algo(data)
         return pred
         
     else:
         print(args[1])
-        sys.exit("Non recognized algorithm!")
-
-    print(args[2], args[3])
+        sys.exit("Unrecognized algorithm!")
 
     pred = model.fit_predict(data)
 
     return pred
 
 def check_C(result, threshold):
-    data = []
+    data = []   
     removed_chain_index = []
+
     if result == False or len(result) == 0:
         return False
 
@@ -453,14 +441,17 @@ def post_process(cluster_list, res_list = False):
                             pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
                             
                     elif label1:
-                        if len(subranges) not in range(10,100) and len(l1) >= 30:
-                            val = list(sorted(set(cluster_list2)))[c1]
-                            pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
-                    
+                        if len(subranges) not in range(10,100):
+                            if len(subranges) < 10 or len(l1) >= 30:
+                                val = list(sorted(set(cluster_list2)))[c1]
+                                pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+
+
                     elif label2:
-                        if len(subranges) not in range(10,100) and len(l2) >= 30:
-                            val = list(sorted(set(cluster_list2)))[c2]
-                            pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+                        if len(subranges) not in range(10,100):
+                            if len(subranges) < 10 or len(l2) >= 30:
+                                val = list(sorted(set(cluster_list2)))[c2]
+                                pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
 
                 # If the selected segment is not an outliner segment
                 else:
@@ -498,7 +489,6 @@ def post_process(cluster_list, res_list = False):
                             val = list(sorted(set(cluster_list2)))[c2]
                             pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
 
-                                    
             pos_ranges += 1
         
         for pos,val in pos_to_change:

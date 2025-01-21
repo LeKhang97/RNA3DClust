@@ -18,8 +18,8 @@ def main_argument():
     
     parser.add_argument('-at',
         '--atom_type',
-        default = 'C3',
-        help ='Atom types to be considered in the analysis. Default is C3.')
+        default = "C3'",
+        help ="Atom types to be considered in the analysis. Default is C3'.")
     
     parser.add_argument('-t',
         '--threshold',
@@ -62,13 +62,12 @@ def main_argument():
     # Subparser for -a D
     parser_a_D = subparsers.add_parser('D', help='Arguments for DBSCAN algorithm')
     parser_a_D.add_argument('-e', type=float, default= 0.5, help='espilon (default = 0.5)')
-    parser_a_D.add_argument('-m', type=int, default = 5, help='min samples (default = 5)')
+    parser_a_D.add_argument('-m', type=int, default = 5, help='min Pts (default = 5)')
 
     # Subparser for -a M
     parser_a_M = subparsers.add_parser('M', help='Arguments for MeanShift algorithm')
     parser_a_M.add_argument('-b', type=float, default= 0.2, help='bandwidth')
     parser_a_M.add_argument('-k', type= str, default= 'flat', choices = ['flat', 'gaussian'], help='kernel type (default = flat)') 
-    parser_a_M.add_argument('-a', type= str, default= 'False', choices = ['True', 'False'], help= 'recalculate bandwidth after each iteration (default = False)')
 
     # Subparser for -a A
     parser_a_A = subparsers.add_parser('A', help='Arguments for Agglomerative Clustering algorithm')
@@ -95,11 +94,13 @@ def process_args():
     
     algo = [i for i in algo_list if i[0] == args.algorithm][0]
 
-    if args.verbose:
-        print("Using algorithm: ", algo)
-        print(f"Arguments for {algo}:")
+    msg = 'Input information:'
+    decorate_message(msg)
 
-        print('Using atom type: ', args.atom_type)
+    print('Using atom type: ', args.atom_type)
+    print("Using algorithm: ", algo)
+    
+    print(f'Mode selected for {algo} algorithm:', end = ' ')
 
     if args.outpath != None and args.json == None and args.pdb == None:
         args.json = args.input
@@ -121,8 +122,7 @@ def process_args():
             args.e = 0.5
             args.m = 5
 
-        if args.verbose:
-            print(f"e: {args.e}, m: {args.m}")
+        print(f"epsilon: {args.e}, min Pts: {args.m}")
         largs += [args.e, args.m]
 
     elif args.algorithm == 'M':
@@ -131,18 +131,9 @@ def process_args():
         
         if not hasattr(args, 'k'):
             args.k = 'flat'
-        if not hasattr(args, 'a'):
-            args.a = False
 
-        elif args.a == 'True':
-            args.a = True
-        
-        elif args.a == 'False':
-            args.a = False
-
-        if args.verbose:
-            print(f"b: {args.b}, k: {args.k}, a: {args.a}")
-        largs += [args.b, args.k, args.a]
+        print(f"bandwidth: {args.b}, kernel type: {args.k}")
+        largs += [args.b, args.k]
 
     elif args.algorithm == 'A':
         if not hasattr(args, 'n') and not hasattr(args, 'd'):
@@ -151,22 +142,23 @@ def process_args():
         if hasattr(args, 'd'):
             args.n = None
 
-        if args.verbose:
-            print(f"n: {args.n}")
-        largs += [args.n]
+        if args.n == None:
+            print(f"distance threshold: {args.d}")
+            largs += [args.d]
+        else:
+            print(f"number of cluster: {args.n}")
+            largs += [args.n]
         
     elif args.algorithm  == 'S':
         if not hasattr(args, 'n'):
             args.n = 2
             args.g = 1
         
-        if args.verbose:
-            print(f"n: {args.n}, g: {args.g}")
+        print(f"number of cluster: {args.n}, gamma: {args.g}")
         largs += [args.n, args.g]
 
     elif args.algorithm == 'C':
-        if args.verbose:
-            print("No arguments needed for Contact-based clustering")
+        print("No arguments needed for Contact-based clustering")
             
     else:
         sys.exit("Unrecognized algorithm!")

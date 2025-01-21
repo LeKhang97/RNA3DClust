@@ -19,7 +19,7 @@ Then use this command below to run the docker image:
 ```docker run -v `pwd`:/workdir/data lequockhang/rna3dclust [options] ```  
 where `` `pwd` `` is your full path to your working directory containing input file(s).  
 Here is the full command for example:  
-```docker run -v `pwd`:/workdir/data lequockhang/rna3dclust -i data/Input.pdb -a A -v -o data/Output```
+```docker run -v `pwd`:/workdir/data lequockhang/rna3dclust -i data/6SW9.pdb -a A -v -o data/Output```
 
 3. Using source code:  
 ```git clone https://github.com/LeKhang97/RNA3DClust```  

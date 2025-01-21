@@ -13,4 +13,4 @@ clean:
 	rm -rf $(VENV)
 	pyclean .
 
-.PHONY: all	run clean
+.PHONY: all run clean

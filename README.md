@@ -6,7 +6,7 @@
 [![DOI](https://img.shields.io/badge/DOI-10.1101%2F2025.01.12.632579-yellow)](https://doi.org/10.1101/2025.01.12.632579)
 
 # RNA3DClust: unsupervised segmentation of RNA 3D structure using density-based clustering
-RNA3DClust uses a clustering-based approach to segment an input RNA 3D structure into independent regions, reminiscent of structural domains in proteins. Among the various options described below, RNA3DClust offers the possibility to generate PDB files, one for each domain. It can also provide PyMOL >= 2.5 commands for coloring the delimited domains.
+RNA3DClust uses a clustering-based approach to segment an input RNA 3D structure into independent regions, reminiscent of structural domains in proteins. Among the various options described below, RNA3DClust offers the possibility to generate PDB files, one for each domain found. It can also provide [PyMOL >= 2.5](https://www.pymol.org/) commands for coloring the delimited domains.
 
 ![Preview](https://evryrna2.ibisc.univ-evry.fr/RNA3DClust.png)
 

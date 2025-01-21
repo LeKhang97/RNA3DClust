@@ -51,16 +51,18 @@ options:
   -h, --help            show this help message and exit
   -v, --verbose         verbose mode.
 
-  -i INPUT, --input INPUT
-                        input file. Must be in pdb format.
+  -r, --reference       name of the reference partition file in JSON format for DCS calculation.
 
-  -at, --atom_type      Atom types to be considered in the analysis. The default is C3.
+  -i INPUT, --input INPUT
+                        input file. Must be in PDB format.
+
+  -at, --atom_type      atom types to be considered in the analysis. The default is C3'.
 
   -t THRESHOLD, --threshold THRESHOLD
-                        Lower threshold for sequence length
+                        lower threshold for sequence length
 
   -o OUTPATH, --outpath OUTPATH
-                        output path for json and pdb files. If not specified, the output will be saved in the current directory.
+                        output path for JSON and PDB files. If not specified, the output will be saved in the current directory.
 
   -p PDB, --pdb PDB
                         output filename in PDB format.

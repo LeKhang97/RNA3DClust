@@ -9,6 +9,7 @@ import itertools
 from matplotlib import cm
 import sklearn
 from sklearn.cluster import DBSCAN
+import sklearn.cluster
 
 from src.Mean_shift import *
 from sklearn.cluster import AgglomerativeClustering
@@ -82,7 +83,7 @@ def process_pdb(list_format, atom_type = 'C3', models = True, get_res = False):
                 break
             model = line.replace(' ','')
 
-        if "ATOM" in line[:6].replace(" ","") and (len(line[17:20].replace(" ","")) == 1 or line[17:20].replace(" ","")[0] == "D") and atom_type in line[12:16]:
+        if ("ATOM" in line[:6].replace(" ","") and (len(line[17:20].replace(" ","")) == 1 or line[17:20].replace(" ","")[0] == "D")) and atom_type in line[12:16]:
             new_line = [line[v[0]:v[1]].replace(" ","") for v in l ] + [model]
             #print(new_line)
             
@@ -140,7 +141,7 @@ def generate_colors(num_colors):
 
 def pymol_process(pred, res_num, name=None, color=None, verbose=False):
     if color is None:
-        color = ['red', 'green', 'yellow', 'orange', 'blue', 'pink', 'cyan', 'purple', 'white', 'grey', 
+        color = ['blue', 'yellow', 'magenta', 'orange', 'green', 'pink', 'cyan', 'purple', 'red','white', 'grey', 
                     'brown','lightblue', 'lightorange', 'lightpink', 'gold']
 
     label_set = list(set(pred))
@@ -221,9 +222,9 @@ def cluster_algo(*args):
     elif args[1] == 'M':
         print(f"Executing MeanShift on chain {args[-1]}...")
         if args[2] > 1:
-            model = MeanShift(bandwidth = args[2], kernel = args[3], cluster_all = False)
+            model = MeanShift(bandwidth = args[2], kernel = args[3], cluster_all = False, max_iter= 300)
         else:
-            model = MeanShift(quantile = args[2], kernel = args[3], cluster_all=False)
+            model = MeanShift(quantile = args[2], kernel = args[3], cluster_all = False, max_iter= 300)
     elif args[1] == 'A':
         print(f"Executing Agglomerative on chain {args[-1]}...")
         model = AgglomerativeClustering(n_clusters= args[2], distance_threshold= args[3])
@@ -480,12 +481,12 @@ def post_process(cluster_list, res_list = False):
                              pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
                             
                     elif label1:
-                        if len(l1) > len(subranges):
+                        if len(l1) > len(subranges) and len(subranges) < 30 and len(l1) >= 30:
                             val = list(sorted(set(cluster_list2)))[c1]
                             pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
 
                     elif label2:
-                        if len(l2) > len(subranges):
+                        if len(l2) > len(subranges) and len(subranges) < 30 and len(l2) >= 30:
                             val = list(sorted(set(cluster_list2)))[c2]
                             pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
 
@@ -917,7 +918,7 @@ def contact_map_algo(original_frags):
             min_value = DIS2[min_key].copy()
 
             if min_value < DISintra(frag) / 2:
-                print('index and key:', ind, min_key)
+                #print('index and key:', ind, min_key)
                 x = top_down_algo(ind, min_key)
                 new_frag_ind += x
                 flag = 1
@@ -931,7 +932,7 @@ def contact_map_algo(original_frags):
 
         s += 1
         if flag == 0:
-            print('perform bot_up_algo')
+            #print('perform bot_up_algo')
             result = bot_up_algo(frags, frag_ind)
             return result
 
@@ -989,3 +990,21 @@ def split_pdb_by_clusters(pdb_file, clusters, output_prefix, chain=None):
                     break
     
     return cluster_lines
+
+def extend_missing_res(list_label, list_residue):
+    max_res = max(list_residue)
+    list_residue_ext = list(range(1, max_res + 1))
+
+    # Use a dictionary for fast lookups
+    residue_to_label = dict(zip(list_residue, list_label))
+    
+    # Initialize the output label list
+    list_label_ext = []
+    last_label = list_label[0]  # Default to first label
+
+    for i in list_residue_ext:
+        if i in residue_to_label:
+            last_label = residue_to_label[i]  # Update last seen label
+        list_label_ext.append(last_label)  # Append last known label
+
+    return list_label_ext, list_residue_ext

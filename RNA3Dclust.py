@@ -72,11 +72,12 @@ if __name__ == "__main__":
 
             name = filename + f'_chain_{chain}'
             pred = cluster_algo(subdata, *x[1:], chain)
-            if x[1][0] != 'C':
-                pred = post_process(pred, res_num)
-            else:
-                flatten_pred = [i for j in pred for i in j]
-                pred = [c for i in flatten_pred for c in range(len(pred)) if i in pred[c]]
+            if True:
+                if x[1][0] != 'C':
+                    pred = post_process(pred, res_num)
+                else:
+                    flatten_pred = [i for j in pred for i in j]
+                    pred = [c for i in flatten_pred for c in range(len(pred)) if i in pred[c]]
 
             
             num_clusters = len(set(i for i in pred if i != -1))
@@ -87,21 +88,27 @@ if __name__ == "__main__":
             decorate_message(msg)
             print(f'Chain {chain} has {num_clusters} clusters and {outlier} outliers.')
 
+            pred_ext, res_num_ext = extend_missing_res(pred, res_num)
+
+            # Use extended data or not
+            use_pred = pred_ext; use_res_num = res_num_ext
+
             # Print the number of residues in each cluster and their positions
-            for h,k in enumerate(set(j for j in pred if j != -1)):
-                range_pos = list_to_range([res_num[j] for j in range(len(pred)) if pred[j] == k])
-                mess_pos = ''.join(f'{j[0]}-{j[-1]}; ' for j in range_pos)
-                print(f'Number of residues of cluster {h+1}: {len([j for j in pred if j == k])}')
+            for h,k in enumerate(set(j for j in use_pred if j != -1)):
+                range_pos = list_to_range([use_res_num[j] for j in range(len(use_pred)) if use_pred[j] == k])
+                mess_pos = ''.join(f'{j[0]}-{j[-1]}, ' for j in range_pos)
+                print(f'Number of residues of cluster {h+1}: {len([j for j in use_pred if j == k])}')
                 print(f'Cluster {h+1} positions:\n{mess_pos}\n')
             
             # If there are outliers, print the number of outliers and their positions
-            if -1 in pred:
-                range_pos = list_to_range([res_num[j] for j in range(len(pred)) if pred[j] == -1])
-                mess_pos = ''.join(f'{j[0]}-{j[-1]}; ' for j in range_pos)
-                print(f'Number of residues of outliers: {len([j for j in pred if j == -1])}')
+            if -1 in use_pred:
+                range_pos = list_to_range([use_res_num[j] for j in range(len(use_pred)) if use_pred[j] == -1])
+                mess_pos = ''.join(f'{j[0]}-{j[-1]}, ' for j in range_pos)
+                print(f'Number of residues of outliers: {len([j for j in use_pred if j == -1])}')
                 print(f'Outliers positions:\n{mess_pos}\n')
 
-            pymol_cmd = pymol_process(pred, res_num, name, verbose = y[1])
+            pymol_cmd = pymol_process(use_pred, use_res_num, name, verbose = y[1])
+
             print('\n')
             result[filename][f'chain_{i}'] = {'data': subdata,
                                             'cluster': pred,
@@ -164,7 +171,6 @@ if __name__ == "__main__":
                 cluster_result = process_cluster_format(pred, res)
                 cluster_lines = split_pdb_by_clusters(x[0], cluster_result, name, chain.split('_')[1])
                 # Write the output files for each cluster
-
 
                 for cluster_index, cluster in cluster_lines.items():
                     if cluster:

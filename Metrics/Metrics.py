@@ -114,8 +114,8 @@ def DBD(domain_distance_mtx, list_range_true, list_range_pred, threshold=7):
     scoring_mtx = [[threshold - i if i < threshold else 0 for i in row] for row in domain_distance_mtx]
     merged_scoring_mtx = np.array(merge_ele_matrix(scoring_mtx, list_range_true, list_range_pred))
     
-    max_row = np.amax(merged_scoring_mtx, axis=1) if merged_scoring_mtx.shape[0] >= merged_scoring_mtx.shape[1] else np.amax(merged_scoring_mtx, axis=0)
-    return sum(max_row) / (threshold * max(merged_scoring_mtx.shape))
+    max_score = np.amax(merged_scoring_mtx, axis=1) if merged_scoring_mtx.shape[0] >= merged_scoring_mtx.shape[1] else np.amax(merged_scoring_mtx, axis=0)
+    return sum(max_score) / (threshold * max(merged_scoring_mtx.shape))
 
 # Function to compute Domain Clustering Similarity (DCS)
 def DCS(truth, pred, outliner=False):

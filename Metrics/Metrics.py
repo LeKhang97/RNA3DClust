@@ -118,7 +118,7 @@ def DBD(domain_distance_mtx, list_range_true, list_range_pred, threshold=7):
     return sum(max_score) / (threshold * max(merged_scoring_mtx.shape))
 
 # Function to compute Domain Clustering Similarity (DCS)
-def DCS(truth, pred, outliner=False):
-    if not outliner:
+def DCS(truth, pred, outlier=False):
+    if not outlier:
         truth, pred = [i for i in truth if i != -1], [i for i in pred if i != -1]
     return (max(len(set(truth)), len(set(pred))) - abs(len(set(truth)) - len(set(pred)))) / max(len(set(truth)), len(set(pred)))

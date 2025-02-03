@@ -117,7 +117,7 @@ def DBD(domain_distance_mtx, list_range_true, list_range_pred, threshold=7):
     max_score = np.amax(merged_scoring_mtx, axis=1) if merged_scoring_mtx.shape[0] >= merged_scoring_mtx.shape[1] else np.amax(merged_scoring_mtx, axis=0)
     return sum(max_score) / (threshold * max(merged_scoring_mtx.shape))
 
-# Function to compute Domain Clustering Similarity (DCS)
+# Function to compute Domain Count Score (DCS)
 def DCS(truth, pred, outlier=False):
     if not outlier:
         truth, pred = [i for i in truth if i != -1], [i for i in pred if i != -1]

@@ -57,7 +57,7 @@ def main_argument():
     parser.add_argument('-r',
                         '--reference',
                         type=str,
-                        help='Name of the reference partition file in JSON format for DCS calculation.')
+                        help='Name of the reference partition file in JSON format for SDC calculation.')
     
     # Subparser for -a D
     parser_a_D = subparsers.add_parser('D', help='Arguments for DBSCAN algorithm')

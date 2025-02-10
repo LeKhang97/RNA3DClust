@@ -378,7 +378,19 @@ def post_process(cluster_list, res_list = False):
         for pos,val in pos_to_change:
             cluster_list2[pos] = val
     
-    return cluster_list2    
+    return cluster_list2   
+
+def SDC(truth,pred, outliner = False):
+    if outliner == False:
+        truth = [i for i in truth if i != -1]
+        pred =  [i for i in pred if i != -1]
+    
+    count_truth = len(set(truth))
+    count_pred = len(set(pred))
+    
+    sdc = (max((count_truth), count_pred) - abs(count_truth - count_pred))/max(count_truth, count_pred)
+    
+    return sdc
 
 def inf(tup_of_tups, val):
     start_eles = [min(tup) for tup in tup_of_tups if min(tup) <= val]

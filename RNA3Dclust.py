@@ -129,8 +129,8 @@ if __name__ == "__main__":
                 else:
                     ref_domains = ref_file[filename][chain]['cluster']
                 
-                dcs_score = DCS(ref_domains, pred_clusters)
-                print(f"DCS Score for {chain}: {dcs_score:.4f}")
+                sdc_score = SDC(ref_domains, pred_clusters)
+                print(f"SDC Score for {chain}: {sdc_score:.4f}")
                 
                 
     #Check if the user want to write the result to a file

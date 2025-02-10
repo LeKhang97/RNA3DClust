@@ -27,7 +27,7 @@ distance_mtx = domain_distance_matrix2([truth,pred],res)
 sdd_score = DBD(distance_mtx, threshold=10)
 ```
 **The SDC (Structural Domain Count)** compares the difference in the number of domains in 2 partitioning results and then normalizes it in the range of [0,1]:
-![DBD_NDO_DCS(5)](https://github.com/user-attachments/assets/13dda7f6-7c8a-4cfe-aed0-c6b109cbcfa1)
+![DBD_NDO_DCS(3)](https://github.com/user-attachments/assets/01abf1fd-144d-4fc7-92f9-7b78cda99a8f)
 
 ```
 # Calculate the SDC score

@@ -15,7 +15,7 @@ ndo_score = NDO(overlap_mtx,length_seq, min_labels)
 
 ![DBD_NDO_DCS(4)](https://github.com/user-attachments/assets/c2939e51-9ff0-4f31-b405-eea48ed23f02)
 
-Both metrics require computing the Domain Distance Matrix first. This matrix is different from each other. Then, based on the  distance matrix, we calculate the final score, which uses the same function:
+Both metrics require computing the Domain Distance Matrix first. This matrix is different from each other. Then, based on the distance matrices, we calculate the final scores:
 
 ```
 # Calculate the DBD score
@@ -24,7 +24,7 @@ dbd_score = DBD(distance_mtx, threshold=10)
 
 # Calculate the SDD score
 distance_mtx = domain_distance_matrix2([truth,pred],res)
-sdd_score = DBD(distance_mtx, threshold=10)
+sdd_score = SDD(distance_mtx, threshold=10)
 ```
 **The SDC (Structural Domain Count)** compares the difference in the number of domains in 2 partitioning results and then normalizes it in the range of [0,1]:
 ![DBD_NDO_DCS(3)(1)](https://github.com/user-attachments/assets/d11544a2-78f9-4639-b9e2-a3dd4f7de21c)

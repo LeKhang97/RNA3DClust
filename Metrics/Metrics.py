@@ -18,12 +18,37 @@ def flatten(l):
 
     return result
 
+def merge_ele_matrix(mtx, list_range_true, list_range_pred):
+    merged_mtx_row = []
+    for row in mtx:
+        new_row = row.copy()  # Create a copy of the row to avoid modifying the original row
+        for label_pos in range(len(list_range_true)):
+            s = label_pos
+            e = s + len(list_range_true[label_pos])
+            new_row = new_row[:s] + [sum(new_row[s:e])] + new_row[e:]
+        merged_mtx_row.append(new_row)
+    
+    merged_mtx_row = np.array(merged_mtx_row).T.tolist()
+    
+    merged_mtx = []
+    for row in merged_mtx_row:
+        new_row = row.copy()  # Create a copy of the row to avoid modifying the original row
+        for label_pos in range(len(list_range_pred)):
+            s = label_pos
+            e = s + len(list_range_pred[label_pos])
+            new_row = new_row[:s] + [sum(new_row[s:e])] + new_row[e:]
+        merged_mtx.append(new_row)
+
+        
+    merged_mtx = np.array(merged_mtx).T  # Transpose to get the correct shape
+    
+    return merged_mtx
+
 def list_to_range(l):
     l = sorted(set(l))  # Sort and remove duplicates, but keep order
+    l2 = []
     if len(l) == 0:
         return []
-    
-    l2 = []
     s = l[0]  # Start of the first range
 
     for p, v in enumerate(l):
@@ -73,6 +98,7 @@ def domain_overlap_matrix(lists_label, list_residue = None): #Order in lists_lab
     #return domain_matrix
     return domain_matrix, min_labels
 
+# Function to calculate Normalized Domain Overlap (NDO)
 def NDO(domain_matrix, len_rnas, min_labels=[0, 0]):
     domain_matrix_no_linker = np.array([row[(min_labels[1] == -1):] for row in domain_matrix[(min_labels[0] == -1):]])
     domain_matrix = np.array(domain_matrix)
@@ -86,13 +112,11 @@ def NDO(domain_matrix, len_rnas, min_labels=[0, 0]):
     score = Y / (2 * (len_rnas - sum_col[0] * (min_labels[1] == -1)))
     return score
 
+# Function to compute domain distance
 def domain_distance(segment1, segment2):
-    d = abs(min(segment1) - min(segment2))
-    d += abs(max(segment1) - max(segment2))
-    
-    return d/2
-    
-# Function to compute matrix for Structural Domain Distance (SDD)
+    return (abs(min(segment1) - min(segment2)) + abs(max(segment1) - max(segment2))) / 2
+
+# Matrix for calculating Structural Domain Distance (SDD)
 def domain_distance_matrix2(lists_label, list_residue=None): #Order in lists_label: ground_truth, prediction
     if list_residue is None:
         list_residue = range(len(lists_label[0]))
@@ -160,83 +184,59 @@ def domain_distance_matrix(lists_label, list_residue=None): # Order in lists_lab
         list_residue = range(len(lists_label[0]))
 
     dict_label = {'pred': lists_label[1], 'true': lists_label[0]}
-    
-    # Check if the sequence has only one domain
-    for key1,key2 in itertools.product(dict_label.keys(), dict_label.keys()):
-        if key1 != key2:
-            if len(set(dict_label[key1]) - {-1}) <= 1:
-                if len(set(dict_label[key2]) - {-1}) <= 1:
-                    return [[0]]
-                else:
-                    return [[999999]]
-    
-    dict_boundary = {}
-    linker_pos = {}
+    dict_label_linker_pred = dict_label.copy()
+
+    # Convert all outlier segment in pred into domain label
+    dict_label['pred'] = [i if i != -1 else max(set(dict_label['pred'])) + 1 for i in dict_label['pred']]
+
+    dict_boundary = {}; dict_boundary_linker_pred = {}
     for key in dict_label.keys():
-        dict_boundary[key] = []
-        linker_pos[key] = []
-        prev_label = dict_label[key][0] 
-        for res, label in zip(list_residue, dict_label[key]):
-            if label != prev_label:
-                dict_boundary[key] += [res]
-                if prev_label == -1:
-                    linker_pos[key] += [res]
+        dict_boundary[key] = []; dict_boundary_linker_pred[key] = []
+        prev_label = dict_label[key][0]
+        for pos in range(len(dict_label[key])):
+            if dict_label[key][pos] != prev_label or dict_label[key][pos] == -1:
+                dict_boundary[key] += [list_residue[pos]]
+            if dict_label[key][pos] != prev_label or dict_label_linker_pred[key][pos] == -1:
+                dict_boundary_linker_pred[key] += [list_residue[pos]]
+            
+            prev_label = dict_label[key][pos]
+        
+        dict_boundary[key] = list_to_range(dict_boundary[key])
+        dict_boundary_linker_pred[key] = list_to_range(dict_boundary_linker_pred[key])
+    
+    # Some exceptional cases
+    # If the linker is only in the first or last position of pred, and/or there is no linker or also only in the first or last position of true, return distance 0
+    #if len(dict_boundary_linker_pred['pred']) <= 2 and len(dict_boundary_linker_pred['true']) <= 2:
+    bool_pred = all(any(except_pos in boundary for except_pos in [list_residue[0], list_residue[-1]]) for boundary in dict_boundary_linker_pred['pred']) or len(dict_boundary_linker_pred['pred']) == 0
+    bool_true = all(any(except_pos in boundary for except_pos in [list_residue[0], list_residue[-1]]) for boundary in dict_boundary_linker_pred['true']) or len(dict_boundary_linker_pred['true']) == 0
+        
+    if bool_pred and bool_true:
+        return [[0]]
+    
+    elif bool_true:
+        return [[999999]]
+    
+    elif len(dict_boundary['pred']) == 0 or len(dict_boundary['true']) == 0:
+        return [[999999]]
 
-            if label == -1:
-                linker_pos[key] += [res]
-
-            prev_label = label               
-
-        linker_pos[key] = list_to_range(linker_pos[key])
-
-    # Add the last residue to the boundary and linker positions
     domain_distance_mtx = []
     for boundary1 in dict_boundary['pred']:
         row = []
-        candidate_boundaries1 = [boundary1]
         for boundary2 in dict_boundary['true']:
-                candidate_boundaries2 = [boundary2]
-                # Find the closest linker positions to the boundaries
-                for linker1 in linker_pos['pred']:
-                    if boundary1 in linker1:
-                        candidate_boundaries1 = linker1
-                        break
-
-                for linker2 in linker_pos['true']:
-                    if boundary2 in linker2:
-                        candidate_boundaries2 = linker2
-                        break    
-                
-                distance = abs(boundary1 - boundary2)
-
-                save_b1 = boundary1; save_b2 = boundary2
-                for b1, b2 in itertools.product(candidate_boundaries1, candidate_boundaries2):
-                    if abs(b1 - b2) < distance:
-                        distance = abs(b1 - b2)
-                        save_b1 = b1
-                        save_b2 = b2
-                
-
-                row.append(distance)
+            min_distance = 999999
+            for b1, b2 in itertools.product(boundary1, boundary2):
+                distance = abs(b1 - b2)
+                if distance < min_distance:
+                    min_distance = distance
+                if min_distance == 0:
+                    break   
+            row.append(min_distance)
         domain_distance_mtx.append(row)
-
-    # Remove the first and last rows and columns if they are linker positions
-    removing_rows = []; removing_cols = []
-    if dict_label['pred'][0] == -1:
-        removing_rows.append(0)
-    if dict_label['true'][0] == -1:
-        removing_cols.append(0)
-    if dict_label['pred'][-1] == -1:
-        removing_rows.append(len(domain_distance_mtx) - 1)
-    if dict_label['true'][-1] == -1:
-        removing_cols.append(len(domain_distance_mtx[0]) - 1)
-    
-    domain_distance_mtx = remove_row_col(domain_distance_mtx, removing_rows, removing_cols)
 
     return domain_distance_mtx
 
 # Function to compute Domain Boundary Distance (DBD) or Structural Domain Distance (SDD)
-def DBD(domain_distance_mtx, threshold=20):
+def SDD(domain_distance_mtx, threshold=20):
     scoring_mtx = [[threshold - i if i < threshold else 0 for i in row] for row in domain_distance_mtx]
     
     # Max values by column
@@ -252,8 +252,27 @@ def DBD(domain_distance_mtx, threshold=20):
 
     return dbd
 
+# Function to compute Domain Boundary Distance (DBD) or Structural Domain Distance (SDD)
+def DBD(domain_distance_mtx, threshold=20):
+    scoring_mtx = [[threshold - i if i < threshold else 0 for i in row] for row in domain_distance_mtx]
+    
+    # Max values by column
+    sum_all = sum(np.sum(scoring_mtx, axis=0).tolist()) 
+    max_by_col = np.max(scoring_mtx, axis=0).tolist()
+
+    # Max values by row
+    max_by_row = np.max(scoring_mtx, axis=1).tolist() 
+    
+    if len(max_by_row) >= len(max_by_col):
+        dbd = sum_all/(threshold*len(max_by_row))
+    else:
+        dbd = sum_all/(threshold*len(max_by_col))
+
+    return dbd
+
 # Function to compute Structural Domain Count (SDC)
 def SDC(truth, pred, outliner=False):
     if not outliner:
         truth, pred = [i for i in truth if i != -1], [i for i in pred if i != -1]
     return (max(len(set(truth)), len(set(pred))) - abs(len(set(truth)) - len(set(pred)))) / max(len(set(truth)), len(set(pred)))
+

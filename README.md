@@ -19,7 +19,7 @@ Then use this command below to run the docker image:
 ```docker run -v `pwd`:/workdir/data lequockhang/rna3dclust [options] ```  
 where `` `pwd` `` is your full path to your working directory containing input file(s).  
 Here is the full command for example:  
-```docker run -v `pwd`:/workdir/data lequockhang/rna3dclust -i data/6SW9.pdb -a A -v -o data/Output```
+```docker run -v `pwd`:/workdir/data lequockhang/rna3dclust -i data/4y1n.pdb -a A -v -o data/Output```
 
 3. Using source code:  
 ```git clone https://github.com/LeKhang97/RNA3DClust```  
@@ -77,6 +77,57 @@ options:
 - Each algorithm has its default parameters. For example, if you want to check the MeanShift, type ```python3 ./RNA3DClust.py M -h ``` for details. You can also change the parameters, in this case is the bandwidth (-b), by following: <br>
 ```python3 RNA3Dclust.py -i infile -v -a M -o . M -b 5```
 
+### Example
+Here is an example of using RNA3DClust and its output, using MeanShift clustering algorithm with default parameters (flat kernel, bandwidth = 0.2):
+```
+python3 RNA3Dclust.py -a M -i data/4y1n.pdb
+==================
+Input information:
+==================
+Using atom type:  C3'
+Using algorithm:  MeanShift
+Mode selected for MeanShift algorithm: bandwidth: 0.2, kernel type: flat
+----------------------------------------
+Executing MeanShift on chain A...
+
+MeanShift algorithm converged after 24 iterations.
+
+===================
+Output information:
+===================
+Chain A has 3 clusters and without outliers.
+Number of residues of cluster 1: 100
+Cluster 1 positions:
+1-70, 114-126, 234-250, 
+
+Number of residues of cluster 2: 107
+Cluster 2 positions:
+127-233, 
+
+Number of residues of cluster 3: 63
+Cluster 3 positions:
+71-113, 251-270, 
+
+
+
+----------------------------------------
+Executing MeanShift on chain B...
+
+MeanShift algorithm converged after 30 iterations.
+
+===================
+Output information:
+===================
+Chain B has 2 clusters and without outliers.
+Number of residues of cluster 1: 131
+Cluster 1 positions:
+1-93, 233-270, 
+
+Number of residues of cluster 2: 139
+Cluster 2 positions:
+94-232, 
+
+```
 ### Notes
 - All parameters specified for each algorithm can only be accessed after typing its abbreviation (besides the option `-a [algorithm]`);
 - The input must be in PDB format;

@@ -686,7 +686,8 @@ def split_pdb_by_clusters(pdb_file, clusters, output_prefix, chain=None):
 
 def extend_missing_res(list_label, list_residue):
     max_res = max(list_residue); min_res = min(list_residue)
-    list_residue_ext = list(range(min_res, max_res + 1))
+    #list_residue_ext = list(range(min_res, max_res + 1))
+    list_residue_ext = list(range(1, max_res + 1))
 
     # Use a dictionary for fast lookups
     residue_to_label = dict(zip(list_residue, list_label))

@@ -347,10 +347,10 @@ class MeanShift(ClusterMixin, BaseEstimator):
         self.n_iter_ = max([x[2] for x in all_res])
         if self.n_iter_ == self.max_iter:
             warnings.warn(
-                "\nMean shift algorithm may not converge. Try increasing the bandwidth.\n"
+                "\nMeanShift algorithm may not converge. Try increasing the bandwidth.\n"
             )
         else:
-            print(f"\nMean shift algorithm converged after {self.n_iter_} iterations.\n")
+            print(f"\nMeanShift algorithm converged after {self.n_iter_} iterations.\n")
         
         if self.save_iterations:
             self.intermediate_means = [x[3] for x in all_res]

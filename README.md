@@ -89,13 +89,10 @@ Input information:
 Using atom type:  C3'
 Using algorithm:  MeanShift
 Mode selected for MeanShift algorithm: bandwidth: 0.2, kernel type: flat
-['data/4adv.pdb', 'M', 0.2, 'flat', 'static', 30]
-{'A'}
 Processing all valid chains!
 
 Missing residues on chain A: 1-4; 1386-1505; 1535-1542; 
 
-('M', 0.2, 'flat', 'static', 30, 'A')
 ----------------------------------------
 Executing MeanShift on chain A...
 Static bandwidth for all iterations: 50.7926621208549
@@ -114,7 +111,6 @@ Cluster 1 positions:
 Number of residues of cluster 2: 606
 Cluster 2 positions:
 929-1534, 
-
 ```
 ### Notes
 - All parameters specified for each algorithm can only be accessed after typing its abbreviation (besides the option `-a [algorithm]`);

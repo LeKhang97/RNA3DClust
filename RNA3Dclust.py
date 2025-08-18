@@ -11,20 +11,23 @@ if __name__ == "__main__":
 
         #Read file
         with open(x[0], 'r') as infile:
+            missing_res = find_missing_res(x[0])
+
             file = infile.read().split('\n')
-            C = process_pdb(file, atom_type=y[2])
+            C = process_structure(file, atom_type=y[2], filename=x[0])
+            #C = process_pdb(file, atom_type=y[2])
 
             if C == False:
                 sys.exit("File is error or chosen atom type is not present!")
 
             if '\\' in x[0]:
-                filename = ''.join(x[0].split('\\')[-1]).replace('.pdb', '')
+                filename = ''.join(x[0].split('\\')[-1]).replace('.pdb', '').replace('.cif','')
             else:
-                filename = ''.join(x[0].split('/')[-1]).replace('.pdb', '')
+                filename = ''.join(x[0].split('/')[-1]).replace('.pdb', '').replace('.cif','')
             
             # Create a command file to PyMOL
             #cmd_file = f'load {os.getcwd()}\{filename}.pdb; '
-            cmd_file = f'load {os.getcwd()}\{x[0]}; '
+            cmd_file = f'load {os.getcwd()}/{x[0]}; '
             #print(cmd_file, f'load {os.getcwd()}\{x[0]}; ')
 
     #Check if the file is error, the result is either empty or if the length of chains is valid
@@ -35,7 +38,8 @@ if __name__ == "__main__":
     if data ==  False:
         sys.exit("File is error!")
     else:
-        models = set([''.join(i.split('_')[1]) for i in remaining_chains])
+        models = ''
+        #models = set([''.join(i.split('_')[1]) for i in remaining_chains])
         if bool(models):
             num_chains = len([i for i in remaining_chains if ''.join(i.split('_')[1]) == list(models)[0]])
         else:
@@ -57,7 +61,27 @@ if __name__ == "__main__":
                         
         # Cluster each chain separately
         old_model = ''
-        for subdata, res_num, i in zip(data, res_num_array, remaining_chains):
+        if y[5] == 'longest':
+            print(f'Processing longest valid chain!', end='\n\n')
+            chains = [i for i in remaining_chains if len(data[remaining_chains.index(i)]) == max([len(data[j]) for j in range(len(data))])]
+        elif y[5] == 'all':
+            print(f'Processing all valid chains!', end='\n\n')
+            chains = remaining_chains
+        elif y[5]:
+            print(f'Processing chain {y[5]}!', end='\n\n')
+            chains = [i for i in remaining_chains if i == y[5]]
+            data = [data[remaining_chains.index(i)] for i in chains]
+            res_num_array = [res_num_array[remaining_chains.index(i)] for i in chains]
+        else:
+            raise ValueError("Cannot find the chain to process, please check your chain name!")
+
+        for subdata, res_num, i in zip(data, res_num_array, chains):
+            if i in missing_res:
+                missing_res_msg = ''.join([f'{l[0]}-{l[-1]}; ' if l[0] != l[-1] else f'{l[0]}; ' for l in list_to_range(missing_res[i])])
+                print(f"Missing residues on chain {i}: {missing_res_msg}", end='\n\n')
+            else:
+                print(f"No missing residues on chain {i}", end='\n\n')
+
             if 'MODEL' in i:
                 chain = i.split('_')[0]
                 model = i.split('_')[1]
@@ -72,9 +96,10 @@ if __name__ == "__main__":
 
             name = filename + f'_chain_{chain}'
             pred = cluster_algo(subdata, *x[1:], chain)
+            
             if True:
                 if x[1][0] != 'C':
-                    pred = post_process(pred, res_num)
+                    pred = post_process_update(pred, res_num)
                 else:
                     flatten_pred = [i for j in pred for i in j]
                     pred = [c for i in flatten_pred for c in range(len(pred)) if i in pred[c]]
@@ -89,6 +114,7 @@ if __name__ == "__main__":
             print(f'Chain {chain} has {num_clusters} clusters and {outlier} outliers.')
 
             pred_ext, res_num_ext = extend_missing_res(pred, res_num)
+            #print(res_num)
 
             # Use extended data or not
             use_pred = pred_ext; use_res_num = res_num_ext
@@ -110,28 +136,13 @@ if __name__ == "__main__":
             pymol_cmd = pymol_process(use_pred, use_res_num, name, verbose = y[1])
 
             print('\n')
-            result[filename][f'chain_{i}'] = {'data': subdata,
+            result[filename][i.replace('_','')] = {'data': subdata,
                                             'cluster': pred,
                                             'res': res_num,
+                                            'missing_res': missing_res[i] if i in missing_res else None,
                                             'PyMOL': pymol_cmd
                                             }
-            if i.split('_')[1] == 'MODEL1' or 'MODEL' not in i:
-                cmd_file += '; '.join(pymol_cmd) + ';'
-
-        if y[5]:
-            with open(y[5], 'r') as ref_file:
-                ref_file = json.load(ref_file)
-            
-            for chain in result[filename]:
-                pred_clusters = result[filename][chain]['cluster']
-                if 'cluster' in ref_file[filename].keys():
-                    ref_domains = ref_file[filename]['cluster']
-                else:
-                    ref_domains = ref_file[filename][chain]['cluster']
-                
-                sdc_score = SDC(ref_domains, pred_clusters)
-                print(f"SDC Score for {chain}: {sdc_score:.4f}")
-                
+            cmd_file += '; '.join(pymol_cmd) + ';'
                 
     #Check if the user want to write the result to a file
     if y[0] != None:
@@ -146,8 +157,8 @@ if __name__ == "__main__":
         if y[3] != None:
             basename1 = os.path.basename(y[3])
 
-            outfile1 = target_dir / f"{basename1.replace('.json','').replace('.pdb','')}.json"
-            outfile2 = target_dir / f"{basename1.replace('.json','').replace('.pdb','')}_pymolcmd.pml"
+            outfile1 = target_dir / f"{basename1.replace('.json','').replace('.pdb','').replace('.cif','')}.json"
+            outfile2 = target_dir / f"{basename1.replace('.json','').replace('.pdb','').replace('.cif','')}_pymolcmd.pml"
             
             with open(outfile1, 'w') as outfile:
                 json.dump(result, outfile, indent=2, cls=CustomNumpyEncoder)
@@ -160,25 +171,36 @@ if __name__ == "__main__":
 
         if y[4] != None:
             basename2 = os.path.basename(y[4])
-            name = x[0].replace('.pdb', '')
+            name = x[0].replace('.pdb', '').replace('.cif','')
             for chain in result[filename].keys():
                 pred = result[filename][chain]['cluster']
                 res_num = result[filename][chain]['res']
 
-                res = [res_num[i] for i in range(len(pred)) if pred[i] != -1]
-                pred = [i for i in pred if i != -1]
+                #res = [res_num[i] for i in range(len(pred)) if pred[i] != -1]
+                #pred = [i for i in pred if i != -1]
+                res = list(res_num) 
 
                 cluster_result = process_cluster_format(pred, res)
-                cluster_lines = split_pdb_by_clusters(x[0], cluster_result, name, chain.split('_')[1])
-                # Write the output files for each cluster
+                cluster_lines = split_pdb_by_clusters(x[0], cluster_result, name, chain)
+                # Write the output files for each chain it processed
+                if y[1]:
+                    print(f"Writing clusters for chain {chain}...")
+                
+            
+                output_file = target_dir / f"{filename}.pdb"
 
-                for cluster_index, cluster in cluster_lines.items():
+                with open(output_file, 'w') as outfile:
+                    #print(data[remaining_chains.index(chain.replace('chain_',''))])
+                    #subdata = '\n'.join(data[remaining_chains.index(chain.replace('chain_',''))])
+                    outfile.writelines([i for j in cluster_lines.keys() for i in cluster_lines[j]])
+
+                '''for cluster_index, cluster in cluster_lines.items():
                     if cluster:
                         output_file = target_dir / f"{basename2.replace('.pdb', '')}_{chain}cluster_{cluster_index + 1}.pdb"
                         with open(output_file, 'w') as outfile:
                             outfile.writelines(cluster)
                         if y[1]:
-                            print(f"Wrote {len(cluster)} lines to {output_file}")
+                            print(f"Wrote {len(cluster)} lines to {output_file}")'''
         
         if y[1]:
             print("Writing completed!")

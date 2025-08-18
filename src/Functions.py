@@ -10,7 +10,8 @@ from matplotlib import cm
 import sklearn
 from sklearn.cluster import DBSCAN
 import sklearn.cluster
-
+from sklearn.metrics import pairwise_distances
+from Bio.PDB import PDBParser, MMCIFParser
 from src.Mean_shift import *
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.cluster import SpectralClustering
@@ -71,7 +72,7 @@ def process_pdb(list_format, atom_type = 'C3', models = True, get_res = False):
     res_num = []
     result = []
     res = []
-    l = [(0,6),(6,11),(12,16),(16,17),(17,20),(21,22),(22,26),
+    l = [(0,6),(6,11),(12,16),(16,17),(17,20),(20,22),(22,26),
          (26,27),(30,37),(38,46),(46,54),(54,60),(60,66),(72,76),
           (76,78),(78,80)]
     model = ''
@@ -83,12 +84,14 @@ def process_pdb(list_format, atom_type = 'C3', models = True, get_res = False):
                 break
             model = line.replace(' ','')
 
+        model = '' # Adapt the web-server
         if ("ATOM" in line[:6].replace(" ","") and (len(line[17:20].replace(" ","")) == 1 or line[17:20].replace(" ","")[0] == "D")) and atom_type in line[12:16]:
             new_line = [line[v[0]:v[1]].replace(" ","") for v in l ] + [model]
-            #print(new_line)
-            
-            if new_line[5] + '_' + model not in chains:
-                chains += [new_line[5] + '_' + model]
+
+            chain_name = new_line[5]
+            if chain_name not in chains:
+                chains += [chain_name]
+
             coor_atoms_C += [new_line]
 
     if bool(chains) == 0:
@@ -105,6 +108,7 @@ def process_pdb(list_format, atom_type = 'C3', models = True, get_res = False):
         res += [[new_line[4] for new_line in coor_atoms_C if new_line[5] == chain.split('_')[0] 
                  and new_line[16] == ''.join(chain.split('_')[1:])]]
     
+    print(set(chains))
     if get_res:
         return result, chains, res_num, res
     else:
@@ -209,22 +213,33 @@ def join_clusters(list_cluster):
                 cont = True
         
         result = list(set(result))
-        prev_result = result
-
-    return prev_result
+        prev_result = result 
 
 def cluster_algo(*args):
+    print(args[1:])
     data = args[0]
     print('-'*40)
     if args[1] == 'D':
         print(f"Executing DBSCAN on chain {args[-1]}...")
-        model = DBSCAN(eps=args[2], min_samples= args[3])
+        if args[3] <= 1 and type(args[3]) == float:
+            min_samples = int(args[3] * len(data))
+            if min_samples == 0:
+                min_samples = 1
+        else:
+            min_samples = args[3]
+        if args[2] <= 1 and type(args[2]) == float:
+            eps = pairwise_distances(data, metric='euclidean').max() * args[2]
+        else:
+            eps = args[2]
+
+        print(f"Using eps = {eps}, min_samples = {min_samples}")
+        model = DBSCAN(eps=eps, min_samples= min_samples)
     elif args[1] == 'M':
         print(f"Executing MeanShift on chain {args[-1]}...")
         if args[2] > 1:
-            model = MeanShift(bandwidth = args[2], kernel = args[3], cluster_all = False, max_iter= 300)
+            model = MeanShift(bandwidth = args[2], kernel = args[3], bandwidth_mode= args[4], cluster_all = False, max_iter= 300)
         else:
-            model = MeanShift(quantile = args[2], kernel = args[3], cluster_all = False, max_iter= 300)
+            model = MeanShift(quantile = args[2], kernel = args[3], bandwidth_mode= args[4], cluster_all = False, max_iter= 300)
     elif args[1] == 'A':
         print(f"Executing Agglomerative on chain {args[-1]}...")
         model = AgglomerativeClustering(n_clusters= args[2], distance_threshold= args[3])
@@ -262,13 +277,13 @@ def check_C(result, threshold):
             data += [np.array(l)]
 
         return data, [i for i in result[-1] if len(i) >= threshold], removed_chain_index
-
+    
 def post_process(cluster_list, res_list = False):
     cluster_list2 = cluster_list.copy()
     if res_list == False:
         res_list = list(range(len(cluster_list2)))
     
-    n = 10 # Number of iterations
+    n = 11 # Number of iterations
     for t in range(n):
         #ranges contain clusters with ranges, values contain clusters with values
         min_cluster = (min(set(cluster_list2)))**2
@@ -284,7 +299,7 @@ def post_process(cluster_list, res_list = False):
                     #if len(subranges) < 100:
                     if True:
                         # If the residues right before the selected segment exists, label the segment and cluster that contains it
-                        for t1 in range(1,11):
+                        for t1 in range(1,7):
                             if subranges[0] - t1 in values:
                                 c1 = list_of_values.index(values) 
                                 l1 = [l for l in list_of_ranges[c1] if subranges[0] - t1 in l][0]
@@ -298,6 +313,7 @@ def post_process(cluster_list, res_list = False):
                                 l2 = [l for l in list_of_ranges[c2] if subranges[-1] + t2 in l][0]
                                 label2 = True
                                 break
+                
                 # If the selected segment is an outliner segment
                 if min_cluster == 1 and pos_ranges == 0:
                     # If 2 segments on both sides have the same label, label the outliner that label if it's < 30
@@ -354,13 +370,16 @@ def post_process(cluster_list, res_list = False):
                         val2 = list(sorted(set(cluster_list2)))[c2]
                         if val1 != -1 and val2 != -1:
                             if len(l1) >= 30 and len(l2) >= 30:
+                            #if len(l1) > len(subranges) and len(l2) > len(subranges) and len(subranges) < 30:
                                 pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in subranges[:int(len(subranges)/2)]])
                                 pos_to_change += flatten([[(j, val2) for j in range(len(res_list)) if res_list[j] == i] for i in subranges[:int(len(subranges)/2)]])
 
                         elif val1 == -1 and len(subranges) < 30 and len(l2) >= 30:
+                        #elif val1 == -1 and len(subranges) < 30 and len(l2) > len(subranges) and len(l1) > len(subranges):
                             pos_to_change += flatten([[(j, val2) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
 
                         elif val2 == -1 and len(subranges) < 30 and len(l1) >= 30:
+                        #elif val2 == -1 and len(subranges) < 30 and len(l2) > len(subranges) and len(l1) > len(subranges):
                              pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
                             
                     elif label1:
@@ -372,13 +391,241 @@ def post_process(cluster_list, res_list = False):
                         if len(l2) > len(subranges) and len(subranges) < 30 and len(l2) >= 30:
                             val = list(sorted(set(cluster_list2)))[c2]
                             pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
-        
+
+                if t == n-1 and len(ranges) == 1:
+                    if len(ranges[0]) < 10 and c2 != 9999:
+                        val = list(sorted(set(cluster_list2)))[c2]
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+                    elif len(ranges[0]) < 30:
+                        val = -1
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in subranges])
+
             pos_ranges += 1
 
         for pos,val in pos_to_change:
             cluster_list2[pos] = val
     
-    return cluster_list2   
+    return cluster_list2  
+
+def make_list_of_ranges(res_list, cluster_list):
+    list_of_ranges = []; l = [res_list[0]]
+    for p,v in enumerate(res_list):
+        if p == 0:
+            continue
+        if cluster_list[p] == cluster_list[p-1]:
+            if (cluster_list[p] != -1 and res_list[p] - res_list[p-1] == 1) or cluster_list[p] == -1:
+                l += [v]
+        else:
+            list_of_ranges += [l]
+            l = [v]
+
+        if p == len(res_list) - 1:
+            list_of_ranges += [l]
+
+    return list_of_ranges
+
+def find_missing_res(file):
+    from collections import defaultdict
+
+    missing_residues = defaultdict(set)
+
+    # === Step 1: Parse REMARK 465 or _pdbx_unobs_or_zero_occ_residues ===
+    if file.endswith('.pdb'):
+        is_remark_465 = False
+        with open(file, 'r') as infile:
+            for line in infile:
+                if line.startswith('REMARK 465   M RES C SSSEQI'):
+                    is_remark_465 = True
+                    continue
+                if is_remark_465 and line.startswith('REMARK 465'):
+                    if len(line.strip()) < 20:
+                        continue
+                    try:
+                        res_name = line[15:18].strip()
+                        chain_id = line[19:20].strip()
+                        res_num = line[22:27].strip()
+                        if res_name in {'A', 'C', 'G', 'U', 'I', 'T'}:
+                            missing_residues[chain_id].add(int(res_num))
+                    except (ValueError, IndexError):
+                        continue
+                elif is_remark_465 and not line.startswith('REMARK'):
+                    break
+
+    elif file.endswith('.cif'):
+        in_block = False
+        with open(file, 'r') as infile:
+            for line in infile:
+                if '_pdbx_unobs_or_zero_occ_residues.polymer_flag' in line:
+                    in_block = True
+                    continue
+                if in_block:
+                    if line.startswith('#') or line.strip() == '' or line.startswith('_'):
+                        break  # end of block
+                    parts = line.strip().split()
+                    if len(parts) >= 4:
+                        chain_id = parts[1]
+                        res_num = parts[2]
+                        comp_id = parts[3]
+                        if comp_id in {'A', 'C', 'G', 'U', 'I', 'T'}:
+                            try:
+                                missing_residues[chain_id].add(int(res_num))
+                            except ValueError:
+                                continue
+
+    # === Step 2: Detect implicit gaps ===
+    with open(file, 'r') as f:
+        lines = f.read().splitlines()
+
+    try:
+        _, chains, res_nums_per_chain = process_structure(lines, get_res=False, filename=file)
+    except Exception as e:
+        print(f"Error in process_structure: {e}")
+        return dict(missing_residues)
+
+    for ch, res_list in zip(chains, res_nums_per_chain):
+        sorted_res = sorted(set(res_list))
+        inferred_missing = []
+        for i in range(1, len(sorted_res)):
+            if sorted_res[i] - sorted_res[i - 1] > 1:
+                inferred_missing += list(range(sorted_res[i - 1] + 1, sorted_res[i]))
+        missing_residues[ch].update(inferred_missing)
+
+    # Convert to sorted lists
+    return {ch: sorted(list(missing)) for ch, missing in missing_residues.items()}
+
+def post_process_update(cluster_list, res_list = False, missing_res = False):
+    cluster_list2 = cluster_list.copy()
+    if res_list == False:
+        res_list = list(range(len(cluster_list2)))
+    
+    if missing_res == False:
+        missing_res = [i for i in range(min(res_list), max(res_list)+1) if i not in res_list]
+    s = 0
+    while True:
+        list_of_ranges = make_list_of_ranges(res_list, cluster_list2)
+        if len(list_of_ranges) == 1:
+            break
+
+        label_segments = [cluster_list2[res_list.index(p[0])] for p in list_of_ranges] # Get the labels of the segments
+        
+        pos_to_change = []
+        for pos, ranges in enumerate(list_of_ranges):
+            label = label_segments[pos]
+            # If the selected segment is an outlier segment
+            if label == -1:
+                # If the length of outlier segment is 1
+                if len(ranges) == 1:
+                    val = label_segments[pos-1]
+                    pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+                # If the selected outlier segment is the first or last segment
+                # If the selected outlier segment is the first segment
+                if pos == 0:
+                    if label_segments[pos+1] != -1 and len(ranges) not in range(10,100) and len(list_of_ranges[pos+1]) >= 30:
+                        val = label_segments[pos+1]
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])  
+                
+                # If the selected outlier segment is the last segment
+                elif pos == len(list_of_ranges) - 1:
+                    if label_segments[pos-1] != -1 and len(ranges) not in range(10,100) and len(list_of_ranges[pos-1]) >= 30:
+                        val = label_segments[pos-1]
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+
+                else:
+                    # If 2 segments on both sides have the same label, label the outliner that label
+                    if label_segments[pos-1] == label_segments[pos+1] and label_segments[pos-1] != -1:
+                        val = label_segments[pos-1]
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+                
+                    # If 2 segments on both sides have different labels, label the outliner half-half if it's < 10
+                    elif label_segments[pos-1] != label_segments[pos+1] and label_segments[pos-1] != -1 and label_segments[pos+1] != -1 and len(ranges) < 10:
+                        val1 = label_segments[pos-1]
+                        val2 = label_segments[pos+1]
+                        if len(ranges) == 1:
+                            pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+                        else:
+                            pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in ranges[:int(len(ranges)/2)]])
+                            pos_to_change += flatten([[(j, val2) for j in range(len(res_list)) if res_list[j] == i] for i in ranges[int(len(ranges)/2):]])
+                
+            # If the selected segment is not an outlier segment
+            else:
+                # If the selected segment is the first or last segment
+                # If the selected segment is the first segment
+                if pos == 0:
+                    if label_segments[pos+1] != -1 and len(ranges) < 30 and len(list_of_ranges[pos+1]) > len(ranges): # > 30
+                        val = label_segments[pos+1]
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+                    elif label_segments[pos+1] == -1 and len(ranges) < 30:
+                        if len(list_of_ranges[pos+1]) > len(ranges):
+                            val = label_segments[pos+1]
+                            pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+                        else:
+                            if pos + 2 < len(list_of_ranges):
+                                val1 = label_segments[pos]
+                                val2 = label_segments[pos+2]
+                                pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in list_of_ranges[pos+1][:int(len(list_of_ranges[pos+1])/2)]])
+                                pos_to_change += flatten([[(j, val2) for j in range(len(res_list)) if res_list[j] == i] for i in list_of_ranges[pos+1][int(len(list_of_ranges[pos+1])/2):]])
+                        
+                # If the selected segment is the last segment
+                elif pos == len(list_of_ranges) - 1:
+                    if label_segments[pos-1] != -1 and len(ranges) < 30 and len(list_of_ranges[pos-1]) > len(ranges): # > 30
+                        val = label_segments[pos-1]
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+                    elif label_segments[pos-1] == -1 and len(ranges) < 30:
+                        if len(list_of_ranges[pos-1]) > len(ranges):
+                            val = label_segments[pos-1]
+                            pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+                        else:
+                            if pos >= 2:
+                                val1 = label_segments[pos-2]
+                                val2 = label_segments[pos]
+                                pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in list_of_ranges[pos-1][:int(len(list_of_ranges[pos-1])/2)]])
+                                pos_to_change += flatten([[(j, val2) for j in range(len(res_list)) if res_list[j] == i] for i in list_of_ranges[pos-1][int(len(list_of_ranges[pos-1])/2):]])
+                else:
+                    if label_segments[pos-1] == label_segments[pos+1] and label_segments[pos-1] == -1 and len(ranges) < 30 and len(list_of_ranges[pos-1]) >= 30 and len(list_of_ranges[pos+1]) >= 30:
+                        val = -1
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+                    elif label_segments[pos-1] == label_segments[pos+1] and label_segments[pos-1] != -1 and len(ranges) < 30 and len(list_of_ranges[pos-1]) + len(list_of_ranges[pos+1]) > len(ranges):
+                        val = label_segments[pos-1]
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+
+                    elif label_segments[pos-1] != label_segments[pos+1] and label_segments[pos-1] != -1 and label_segments[pos+1] != -1 and len(ranges) < 30 and len(list_of_ranges[pos-1]) > 30 and len(list_of_ranges[pos+1]) > 30:
+                        val1 = label_segments[pos-1]
+                        val2 = label_segments[pos+1]
+                        if len(ranges) == 1:
+                            pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+                        else:
+                            pos_to_change += flatten([[(j, val1) for j in range(len(res_list)) if res_list[j] == i] for i in ranges[:int(len(ranges)/2)]])
+                            pos_to_change += flatten([[(j, val2) for j in range(len(res_list)) if res_list[j] == i] for i in ranges[int(len(ranges)/2):]])
+
+                    elif label_segments[pos-1] != label_segments[pos+1] and label_segments[pos-1] == -1 and label_segments[pos+1] != -1 and len(ranges) < 30 and len(list_of_ranges[pos+1]) > 30:
+                        val = label_segments[pos+1]
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+                    
+                    elif label_segments[pos-1] != label_segments[pos+1] and label_segments[pos-1] != -1 and label_segments[pos+1] == -1 and len(ranges) < 30 and len(list_of_ranges[pos-1]) > 30:
+                        val = label_segments[pos-1]
+                        pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+                    
+                    elif len(ranges) < 30:
+                        if len(list_of_ranges[pos-1]) > len(ranges):
+                            if len(list_of_ranges[pos-1]) > len(list_of_ranges[pos+1]):
+                                val = label_segments[pos-1]
+                            else:
+                                val = label_segments[pos+1]
+                            pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])
+                        elif len(list_of_ranges[pos+1]) > len(ranges):
+                            val = label_segments[pos+1]
+                            pos_to_change += flatten([[(j, val) for j in range(len(res_list)) if res_list[j] == i] for i in ranges])                    
+
+        for new_pos,new_val in pos_to_change:
+            cluster_list2[new_pos] = new_val
+
+        # Check if any changes were made
+        if bool(pos_to_change) == False or s == 30:
+            break
+
+        s += 1
+
+    return cluster_list2  
 
 def SDC(truth,pred, outliner = False):
     if outliner == False:
@@ -646,41 +893,47 @@ def process_cluster_format(clust_lst, res_lst = None):
     return clust_by_res
     
 def split_pdb_by_clusters(pdb_file, clusters, output_prefix, chain=None):
-    """
-    Splits a PDB file into multiple PDB files based on provided clusters of residues.
-    If a chain is specified, only residues from that chain will be processed.
-
-    Parameters:
-        pdb_file (str): Path to the input PDB file.
-        clusters (list of list of int): List of clusters, where each cluster is a list of residue indices.
-        output_prefix (str): Prefix for output files.
-        chain (str, optional): Chain ID to filter residues by. If None, all chains are processed.
-    """
-
-    # Read the PDB file
-    with open(pdb_file, 'r') as file:
-        lines = file.readlines()
-
-    # Create a dictionary to store lines for each cluster
+    is_cif = pdb_file.endswith(".cif")
     cluster_lines = {i: [] for i in range(len(clusters))}
 
-    # Process each line in the PDB file
-    for line in lines:
-        if line.startswith("ATOM") or line.startswith("HETATM"):
-            # Extract residue sequence number and chain ID
-            residue_seq = int(line[22:26].strip())  # Extract residue sequence number
-            residue_chain = line[21:22].strip()  # Extract chain ID (column 22)
+    if not is_cif:
+        # == PDB FORMAT ==
+        with open(pdb_file, 'r') as file:
+            lines = file.readlines()
 
-            # If a chain is specified, skip lines that don't match the chain
-            if chain and residue_chain != chain:
-                continue
+        for line in lines:
+            if line.startswith("ATOM") or line.startswith("HETATM"):
+                try:
+                    residue_seq = int(line[22:26].strip())
+                    residue_chain = line[21:22].strip()
+                except ValueError:
+                    continue
+                if chain and residue_chain != chain:
+                    continue
+                for cluster_index, cluster in enumerate(clusters):
+                    if residue_seq in cluster:
+                        cluster_lines[cluster_index].append(line)
+                        break
+    else:
+        # == CIF FORMAT ==
+        parser = MMCIFParser(QUIET=True)
+        structure = parser.get_structure("model", pdb_file)
 
-            # Check which cluster this residue belongs to
-            for cluster_index, cluster in enumerate(clusters):
-                if residue_seq in cluster:
-                    cluster_lines[cluster_index].append(line)
-                    break
-    
+        for model in structure:
+            for ch in model:
+                if chain and ch.id != chain:
+                    continue
+                for residue in ch:
+                    res_id = residue.id[1]
+                    for atom in residue:
+                        if atom.get_name().strip() == "C3'":
+                            line = atom.get_parent().get_resname()  # Use as a label placeholder
+                            atom_line = f"ATOM  {atom.serial_number:5d} {atom.name:<4} {residue.resname:>3} {ch.id:1} {res_id:4d}   {atom.coord[0]:8.3f}{atom.coord[1]:8.3f}{atom.coord[2]:8.3f}  1.00  0.00           {atom.element:>2}\n"
+                            for cluster_index, cluster in enumerate(clusters):
+                                if res_id in cluster:
+                                    cluster_lines[cluster_index].append(atom_line)
+                                    break
+
     return cluster_lines
 
 
@@ -702,3 +955,58 @@ def extend_missing_res(list_label, list_residue):
         list_label_ext.append(last_label)  # Append last known label
 
     return list_label_ext, list_residue_ext
+
+def process_structure(input_data, atom_type='C3\'', models=True, get_res=False, filename=None):
+    """
+    Handles both file paths or raw content + optional filename for format detection.
+    """
+    if isinstance(input_data, list):
+        # Require filename for format detection
+        if filename is None:
+            raise ValueError("Filename must be provided when input_data is a list of lines.")
+
+        if filename.endswith('.pdb'):
+            return process_pdb(input_data, atom_type=atom_type, models=models, get_res=get_res)
+        elif filename.endswith('.cif'):
+            # Reconstruct CIF content to parse from string
+            from io import StringIO
+            parser = MMCIFParser(QUIET=True)
+            cif_string = '\n'.join(input_data)
+            structure = parser.get_structure('model', StringIO(cif_string))
+            # Extract coordinates
+            coor_atoms_C = []
+            chains = []
+            res_num = []
+            result = []
+            res = []
+
+            for model in structure:
+                for chain in model:
+                    chain_id = chain.id
+                    chains.append(chain_id)
+                    xs, ys, zs, nums, names = [], [], [], [], []
+                    for residue in chain:
+                        for atom in residue:
+                            if atom_type in atom.get_id():
+                                x, y, z = atom.get_coord()
+                                xs.append(x)
+                                ys.append(y)
+                                zs.append(z)
+                                nums.append(residue.id[1])
+                                names.append(residue.resname)
+                    result.append((xs, ys, zs))
+                    res_num.append(nums)
+                    res.append(names)
+
+            if get_res:
+                return result, chains, res_num, res
+            else:
+                return result, chains, res_num
+        else:
+            raise ValueError("Unknown file type from filename.")
+
+    elif isinstance(input_data, str):
+        return process_structure(input_data, atom_type, models, get_res)
+
+    else:
+        raise TypeError("Input must be list of lines or a file path string.")

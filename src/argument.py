@@ -34,6 +34,13 @@ def main_argument():
                 type=str,
                 help ="path of output for json and pdb files. If not specified, the output will be saved in the current directory.")
     
+    parser.add_argument('-c', '--chain',
+                        type=str, 
+                        nargs='?', 
+                        const=False, 
+                        default='all', 
+                        help='Name of the chain to be processed. If not specified, all chains will be processed.')
+    
     parser.add_argument('-j', '--json', 
                         type= str, 
                         nargs = '?', 
@@ -51,19 +58,24 @@ def main_argument():
     parser.add_argument('-a', 
 					'--algorithm',
                     default = 'M',
-					choices = ['D', 'M', 'A', 'S', 'C'],
-					help="Clustering algorithm. Either: D (DBSCAN); M (MeanShift) (default); A (Agglomerative); S (Spectral); C(Contact-based clustering)")
+					choices = ['D', 'M', 'A', 'S'],
+					help="Clustering algorithm. Either: D (DBSCAN); M (MeanShift) (default); A (Agglomerative); S (Spectral)")
     
-    parser.add_argument('-r',
-                        '--reference',
-                        type=str,
-                        help='Name of the reference partition file in JSON format for SDC calculation.')
+    '''parser.add_argument('-d',
+                        '--dynamic',
+                        action='store_true',
+                        help='Use dynamic bandwidth for MeanShift clustering. Default is False.')'''
+    
+    parser.add_argument('-m', 
+					'--mode',
+                    default = 'static',
+					choices = ['static', 'dynamic', 'adaptive'],
+					help="Mode for MeanShift clustering. Either: static (default); dynamic; adaptive")
     
     # Subparser for -a D
     parser_a_D = subparsers.add_parser('D', help='Arguments for DBSCAN algorithm')
     parser_a_D.add_argument('-e', type=float, default= 0.5, help='espilon (default = 0.5)')
-    parser_a_D.add_argument('-m', type=int, default = 5, help='min Pts (default = 5)')
-
+    parser_a_D.add_argument('-m', type=float, default = 5, help='min Pts (default = 5)')
     # Subparser for -a M
     parser_a_M = subparsers.add_parser('M', help='Arguments for MeanShift algorithm')
     parser_a_M.add_argument('-b', type=float, default= 0.2, help='bandwidth')
@@ -72,7 +84,7 @@ def main_argument():
     # Subparser for -a A
     parser_a_A = subparsers.add_parser('A', help='Arguments for Agglomerative Clustering algorithm')
     parser_a_A.add_argument('-n', type=int, default= 2, help='number of clusters (default = 2)')
-    parser_a_A.add_argument('-d', type=int, default= None, help='distance_threshold')
+    parser_a_A.add_argument('-d', type=float, default= None, help='distance_threshold')
 
     # Subparser for -a S
     parser_a_S = subparsers.add_parser('S', help='Arguments for Spectral algorithm')
@@ -80,7 +92,7 @@ def main_argument():
     parser_a_S.add_argument('-g', type=float, default= 1, help='gamma (default = 1)')
 
     # Subparser for -a C
-    parser_a_C = subparsers.add_parser('C', help='Arguments for Contact-based clustering algorithm')
+    #parser_a_C = subparsers.add_parser('C', help='Arguments for Contact-based clustering algorithm')
     
     args = parser.parse_args()      
     
@@ -90,7 +102,7 @@ def process_args():
     args = main_argument()
     largs = [args.input, args.algorithm]
 
-    algo_list = ['DBSCAN', 'MeanShift', 'Agglomerative', 'Spectral', 'Contact-based clustering']
+    algo_list = ['DBSCAN', 'MeanShift', 'Agglomerative', 'Spectral']
     
     algo = [i for i in algo_list if i[0] == args.algorithm][0]
 
@@ -115,7 +127,7 @@ def process_args():
     if (args.outpath == None) and (args.json != None or args.pdb != None):
         args.outpath = '.'
 
-    largs2 = [args.outpath, args.verbose, args.atom_type, args.json, args.pdb, args.reference]
+    largs2 = [args.outpath, args.verbose, args.atom_type, args.json, args.pdb, args.chain]
         
     if args.algorithm == 'D':
         if not hasattr(args, 'e'):
@@ -136,19 +148,24 @@ def process_args():
         largs += [args.b, args.k]
 
     elif args.algorithm == 'A':
+        print('hehe', args.n, args.d)
         if not hasattr(args, 'n') and not hasattr(args, 'd'):
             args.n = 2
             args.d = None
-        if hasattr(args, 'd'):
+        elif args.d != None:
             args.n = None
+            if args.d < 0:
+                sys.exit("Distance threshold must be a positive number!")
 
+        print(args.n, args.d)
         if args.n == None:
             print(f"distance threshold: {args.d}")
-            largs += [args.d]
+            
         else:
             print(f"number of cluster: {args.n}")
-            largs += [args.n]
-        
+            
+        largs += [args.n, args.d]
+
     elif args.algorithm  == 'S':
         if not hasattr(args, 'n'):
             args.n = 2
@@ -157,12 +174,13 @@ def process_args():
         print(f"number of cluster: {args.n}, gamma: {args.g}")
         largs += [args.n, args.g]
 
-    elif args.algorithm == 'C':
-        print("No arguments needed for Contact-based clustering")
+    #elif args.algorithm == 'C':
+    #    print("No arguments needed for Contact-based clustering")
             
     else:
         sys.exit("Unrecognized algorithm!")
 
-    largs += [args.threshold]
+    largs += [args.mode, args.threshold]
+    print(largs)
 
     return largs, largs2

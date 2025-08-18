@@ -95,33 +95,6 @@ def estimate_bandwidth(X, *, quantile=0.3, n_samples=None, random_state=0, n_job
 
     return bandwidth / X.shape[0]
 
-
-# separate function for each seed's iterative loop
-def _mean_shift_single_seed(my_mean, X, nbrs, max_iter):
-    # For each seed, climb gradient until convergence or max_iter
-    bandwidth = nbrs.get_params()["radius"]
-    stop_thresh = 1e-3 * bandwidth  # when mean has converged
-    completed_iterations = 0
-    while True:
-        # Find mean of points within bandwidth
-        i_nbrs = nbrs.radius_neighbors([my_mean], bandwidth, return_distance=False)[0]
-        points_within = X[i_nbrs]
-        if len(points_within) == 0:
-            break  # Depending on seeding strategy this condition may occur
-        my_old_mean = my_mean  # save the old mean
-        my_mean = np.mean(points_within, axis=0)
-        
-        # If converged or at max_iter, adds the cluster
-        if (
-            np.linalg.norm(my_mean - my_old_mean) < stop_thresh
-            or completed_iterations == max_iter
-        ):
-            break
-        completed_iterations += 1
-    #print(completed_iterations) #modified
-    return tuple(my_mean), len(points_within), completed_iterations
-
-
 @validate_params(
     {"X": ["array-like"]},
     prefer_skip_nested_validation=False,
@@ -133,10 +106,11 @@ def mean_shift(
     seeds=None,
     bin_seeding=False,
     min_bin_freq=1,
-    cluster_all=True,
+    cluster_all=False,
     max_iter=300,
     n_jobs=None,
     quantile=0.3,
+    bandwidth_mode='static',  # New parameter to enable dynamic bandwidth
     kernel="flat",
     save_iterations=False,
 ):
@@ -229,6 +203,7 @@ def mean_shift(
         max_iter=max_iter,
         quantile=quantile,
         kernel=kernel,
+        bandwidth_mode=bandwidth_mode, 
         save_iterations=save_iterations,
     ).fit(X)
         
@@ -286,7 +261,6 @@ def get_bin_seeds(X, bin_size, min_bin_freq=1):
     bin_seeds = bin_seeds * bin_size
     return bin_seeds
 
-
 class MeanShift(ClusterMixin, BaseEstimator):
     def __init__(
         self,
@@ -295,13 +269,14 @@ class MeanShift(ClusterMixin, BaseEstimator):
         seeds=None,
         bin_seeding=False,
         min_bin_freq=1,
-        cluster_all=True,
+        cluster_all=True,  # Changed default to True as per scikit-learn
         n_jobs=None,
         max_iter=300,
         quantile=0.3,
-        kernel='flat',  # added parameter
-        adaptive_bandwidth=False, # added parameter
-        save_iterations=False # added parameter
+        kernel='flat',
+        save_iterations=False,
+        bandwidth_mode='static',  # New parameter: 'static', 'dynamic', 'adaptive'
+        verbose=False  # For debugging output
     ):
         self.bandwidth = bandwidth
         self.seeds = seeds
@@ -311,17 +286,21 @@ class MeanShift(ClusterMixin, BaseEstimator):
         self.n_jobs = n_jobs
         self.max_iter = max_iter
         self.quantile = quantile
-        self.kernel = kernel  # added parameter
-        self.adaptive_bandwidth = adaptive_bandwidth  # added parameter
-        self.save_iterations = save_iterations  # added parameter
-        self.intermediate_means = []  # added parameter
+        self.kernel = kernel
+        self.save_iterations = save_iterations
+        self.bandwidth_mode = bandwidth_mode
+        self.verbose = verbose
+        self.intermediate_means = []
+        # Validate bandwidth_mode
+        if bandwidth_mode not in ['static', 'dynamic', 'adaptive']:
+            raise ValueError("bandwidth_mode must be 'static', 'dynamic', or 'adaptive'")
 
-    def fit(self, X, y=None):   
+    def fit(self, X, y=None):
         X = self._validate_data(X)
         bandwidth = self.bandwidth
         if bandwidth is None:
             bandwidth = estimate_bandwidth(X, quantile=self.quantile, n_jobs=self.n_jobs)
-            #print(bandwidth)  # modified
+        original_bandwidth = bandwidth  # Store original bandwidth
 
         seeds = self.seeds
         if seeds is None:
@@ -332,37 +311,75 @@ class MeanShift(ClusterMixin, BaseEstimator):
         n_samples, n_features = X.shape
         center_intensity_dict = {}
 
-        nbrs = NearestNeighbors(radius=bandwidth, n_jobs=1).fit(X)
+        # Initialize current means and convergence flags
+        current_means = seeds.copy()
+        converged = np.zeros(len(seeds), dtype=bool)
+        n_iterations = np.zeros(len(seeds), dtype=int)
+        intermediate_means = [[] for _ in range(len(seeds))] if self.save_iterations else None
 
-        all_res = Parallel(n_jobs=self.n_jobs)(
-            delayed(self._mean_shift_single_seed)(seed, X, nbrs, max_iter = self.max_iter)  # changed
-            for seed in seeds
-        )
+        if self.bandwidth_mode == 'static':
+            print(f"Static bandwidth for all iterations: {bandwidth}")
 
-        for i in range(len(seeds)):
-            if all_res[i][1]:
-                center_intensity_dict[all_res[i][0]] = all_res[i][1]
+        # Main iteration loop
+        max_iter_reached = False
+        for iteration in range(self.max_iter):
+            if iteration%20 == 0:
+                print(f"Iteration {iteration}")
+            if np.all(converged):
+                break
 
+            # Compute global dynamic bandwidth if needed
+            if self.bandwidth_mode == 'dynamic':
+                if len(current_means) > 1:
+                    bandwidth = self._compute_dynamic_bandwidth(current_means)
+                    print(f"Iteration {iteration}: Dynamic bandwidth = {bandwidth}")
+                else:
+                    bandwidth = original_bandwidth
+            elif self.bandwidth_mode == 'static':
+                bandwidth = original_bandwidth
 
-        self.n_iter_ = max([x[2] for x in all_res])
-        if self.n_iter_ == self.max_iter:
+            # Process all seeds for this iteration
+            results = self._mean_shift_iteration(
+                current_means, converged, X, bandwidth, iteration, original_bandwidth
+            )
+
+            # Update means, convergence status, and intermediate means
+            for i, (new_mean, points_within, has_converged) in enumerate(results):
+                if not converged[i]:
+                    n_iterations[i] = iteration + 1
+                    if has_converged:
+                        converged[i] = True
+                        center_intensity_dict[tuple(new_mean)] = points_within
+                    current_means[i] = new_mean
+                    if self.save_iterations:
+                        intermediate_means[i].append(new_mean)
+
+            # Check if max iterations reached
+            if np.any(n_iterations >= self.max_iter) and not np.all(converged):
+                max_iter_reached = True
+
+        # Store max iterations
+        self.n_iter_ = np.max(n_iterations)
+        print(f"Max iterations reached: {iteration + 1}")
+
+        if max_iter_reached:
             warnings.warn(
-                "\nMeanShift algorithm may not converge. Try increasing the bandwidth.\n"
+                "\nMean shift algorithm may not converge for some seeds. Try increasing max_iter or bandwidth.\n"
             )
         else:
-            print(f"\nMeanShift algorithm converged after {self.n_iter_} iterations.\n")
-        
-        if self.save_iterations:
-            self.intermediate_means = [x[3] for x in all_res]
+            if self.verbose:
+                print(f"\nMean shift algorithm converged after {self.n_iter_} iterations.\n")
 
+        # Store intermediate means if requested
+        if self.save_iterations:
+            self.intermediate_means = intermediate_means
 
         if not center_intensity_dict:
             raise ValueError(
-                "No point was within bandwidth=%f of any seed. Try a different seeding"
-                " strategy or increase the bandwidth."
-                % bandwidth
+                f"No point was within bandwidth={original_bandwidth} of any seed. Try a different seeding strategy or increase the bandwidth."
             )
 
+        # Process final cluster centers
         sorted_by_intensity = sorted(
             center_intensity_dict.items(),
             key=lambda tup: (tup[1], tup[0]),
@@ -370,93 +387,166 @@ class MeanShift(ClusterMixin, BaseEstimator):
         )
         sorted_centers = np.array([tup[0] for tup in sorted_by_intensity])
         unique = np.ones(len(sorted_centers), dtype=bool)
-        nbrs = NearestNeighbors(radius=bandwidth, n_jobs=self.n_jobs).fit(
-            sorted_centers
-        )
+        if self.verbose:
+            print(f"Before merging: {len(sorted_centers)} converged seeds")
+            print(f"Merging with bandwidth: {original_bandwidth}")
+        nbrs = NearestNeighbors(radius=original_bandwidth, n_jobs=self.n_jobs).fit(sorted_centers)
         for i, center in enumerate(sorted_centers):
             if unique[i]:
-                neighbor_idxs = nbrs.radius_neighbors([center], return_distance=False)[
-                    0
-                ]
+                neighbor_idxs = nbrs.radius_neighbors([center], return_distance=False)[0]
                 unique[neighbor_idxs] = 0
                 unique[i] = 1
         cluster_centers = sorted_centers[unique]
+        if self.verbose:
+            print(f"After merging: {len(cluster_centers)} cluster centers")
 
-        if self.adaptive_bandwidth:
-            #print(self.adaptive_bandwidth)  # modified
-            self.bandwidth = self._adaptive_bandwidth(X, cluster_centers)
-            #print(self.bandwidth)  # modified
-
+        # Assign labels based on kernel type
         if self.kernel == 'flat':
-            self._assign_labels_flat(X, cluster_centers, bandwidth)
+            self._assign_labels_flat(X, cluster_centers, original_bandwidth)
         elif self.kernel == 'gaussian':
-            self._assign_labels_gaussian(X, cluster_centers, bandwidth)
+            self._assign_labels_gaussian(X, cluster_centers, original_bandwidth)
         else:
             raise ValueError("Invalid kernel. Choose 'flat' or 'gaussian'.")
 
-        #print(self.bandwidth, self.quantile)  # modified
         return self
 
-    def _mean_shift_single_seed(self, my_mean, X, nbrs, max_iter):
-        bandwidth = nbrs.get_params()["radius"]
-        stop_thresh = 1e-3 * bandwidth
-        completed_iterations = 0
-        if self.save_iterations:
-            intermediate_means = [my_mean]
+    def _mean_shift_iteration(self, current_means, converged, X, global_bandwidth, iteration, original_bandwidth):
+        results = []
+        stop_thresh = 1e-3*original_bandwidth  # Use original bandwidth for convergence
+        stop_thresh = 0.1
 
-        while True:
+        # Precompute nearest neighbors for adaptive mode
+        if self.bandwidth_mode == 'adaptive':
+            k_neighbors = max(5, int(len(X) * self.quantile))
+            nbrs = NearestNeighbors(n_neighbors=k_neighbors, n_jobs=self.n_jobs).fit(X)
+        else:
+            nbrs = NearestNeighbors(radius=global_bandwidth, n_jobs=self.n_jobs).fit(X)
+
+        for i, my_mean in enumerate(current_means):
+            if converged[i]:
+                results.append((my_mean, 0, True))
+                continue
+
+            # Compute bandwidth for this seed
+            if self.bandwidth_mode == 'adaptive':
+                distances, indices = nbrs.kneighbors([my_mean], return_distance=True)
+                bandwidth = np.mean(distances[0])
+                # Filter points within bandwidth using the same nbrs
+                distances, indices = distances[0], indices[0]
+                i_nbrs = indices[distances <= bandwidth]
+            else:
+                bandwidth = global_bandwidth
+                i_nbrs = nbrs.radius_neighbors([my_mean], bandwidth, return_distance=False)[0]
+
+            points_within = X[i_nbrs]
+            n_points_within = len(points_within)
+
+            if n_points_within == 0:
+                results.append((my_mean, 0, True))
+                continue
+
+            old_mean = my_mean
+            if self.kernel == 'flat':
+                new_mean = np.mean(points_within, axis=0)
+            elif self.kernel == 'gaussian':
+                distances = np.linalg.norm(points_within - my_mean, axis=1)
+                weights = self.gaussian_kernel(distances, bandwidth)
+                new_mean = np.average(points_within, axis=0, weights=weights)
+
+            has_converged = np.linalg.norm(new_mean - old_mean) < stop_thresh
+            results.append((new_mean, n_points_within, has_converged))
+
+        return results
+    
+    def _mean_shift_iteration_old(self, current_means, converged, X, global_bandwidth, iteration, original_bandwidth):
+        """
+        Perform one iteration for all non-converged seeds.
+        Uses adaptive bandwidths if bandwidth_mode='adaptive', otherwise uses global_bandwidth.
+        """
+        results = []
+        stop_thresh = 1e-3 * original_bandwidth  # Use original bandwidth for convergence
+        stop_thresh = 0.1
+
+        # Precompute nearest neighbors for efficiency in adaptive mode
+        if self.bandwidth_mode == 'adaptive':
+            k_neighbors = max(5, int(len(X) * self.quantile))  # Consistent with estimate_bandwidth
+            #k_neighbors = 5
+            nbrs_for_bw = NearestNeighbors(n_neighbors=k_neighbors, n_jobs=self.n_jobs).fit(X)
+        else:
+            nbrs = NearestNeighbors(radius=global_bandwidth, n_jobs=self.n_jobs).fit(X)
+
+        print(f"Iteration {iteration}")
+        for i, my_mean in enumerate(current_means):
+            if converged[i]:
+                results.append((my_mean, 0, True))
+                continue
+
+            # Compute bandwidth for this seed
+            if self.bandwidth_mode == 'adaptive':
+                bandwidth = self._compute_local_bandwidth(my_mean, nbrs_for_bw)
+                #print(f"Iteration {iteration}, Seed {i}: Adaptive bandwidth = {bandwidth}")
+                # Create a new NearestNeighbors object for this seed's bandwidth
+                nbrs = NearestNeighbors(radius=bandwidth, n_jobs=self.n_jobs).fit(X)
+            else:
+                bandwidth = global_bandwidth
+
+            # Find points within bandwidth
             i_nbrs = nbrs.radius_neighbors([my_mean], bandwidth, return_distance=False)[0]
             points_within = X[i_nbrs]
-            if len(points_within) == 0:
-                break
+            n_points_within = len(points_within)
 
-            my_old_mean = my_mean
+            if n_points_within == 0:
+                results.append((my_mean, 0, True))  # Mark as converged if no points
+                continue
 
+            # Compute new mean
+            old_mean = my_mean
             if self.kernel == 'flat':
-                my_mean = np.mean(points_within, axis=0)
+                new_mean = np.mean(points_within, axis=0)
             elif self.kernel == 'gaussian':
-                weights = self.gaussian_kernel(
-                    np.linalg.norm(points_within - my_mean, axis=1), bandwidth
-                )
-                my_mean = np.average(points_within, axis=0, weights=weights)
-            
-            if self.save_iterations:
-                if type(self.save_iterations) == bool:
-                    intermediate_means.append(my_mean)
-                else:
-                    if completed_iterations %(self.save_iterations[1] - self.save_iterations[0]) == 0:
-                        intermediate_means.append(my_mean)
-                    
+                distances = np.linalg.norm(points_within - my_mean, axis=1)
+                weights = self.gaussian_kernel(distances, bandwidth)
+                new_mean = np.average(points_within, axis=0, weights=weights)
 
-            if (
-                np.linalg.norm(my_mean - my_old_mean) < stop_thresh
-                or completed_iterations == max_iter
-            ):
-                break
+            # Check convergence
+            has_converged = np.linalg.norm(new_mean - old_mean) < stop_thresh
+            results.append((new_mean, n_points_within, has_converged))
 
-            # If adaptive bandwidth is enabled, update the bandwidth
-            if self.adaptive_bandwidth:
-                bandwidth = self._adaptive_bandwidth(X, my_mean.reshape(1, -1))
-                #print(completed_iterations, bandwidth)  # modified
-            
-            completed_iterations += 1
+        return results
 
-        #print(completed_iterations, bandwidth)  # modified
-        if self.save_iterations:
-            return tuple(my_mean), len(points_within), completed_iterations, intermediate_means
-        
-        return tuple(my_mean), len(points_within), completed_iterations
+    def _compute_dynamic_bandwidth(self, means, threshold=1):
+        """
+        Compute bandwidth as the k-th quantile of pairwise distances among means.
+        """
+        if len(means) < 2:
+            return self.bandwidth or 1.0
 
+        # Compute pairwise distances efficiently
+        n_neighbors = max(1, int(len(means) * self.quantile))
+        nbrs = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=self.n_jobs).fit(means)
+        distances, _ = nbrs.kneighbors(means, return_distance=True)
 
-    def gaussian_kernel(self, distance, bandwidth):  # changed
+        # Use mean of the k-th nearest neighbor distances
+        bandwidth = np.mean(np.max(distances, axis=1))
+        return bandwidth if bandwidth > 0 else threshold  # Avoid zero bandwidth
+
+    def _compute_local_bandwidth(self, mean, nbrs, threshold = 1):
+        """
+        Compute local bandwidth for a single seed based on k-nearest neighbor distances in X.
+        """
+        distances, _ = nbrs.kneighbors([mean], return_distance=True)
+        #print(distances)
+        #bandwidth = np.mean(np.max(distances, axis=1))
+        bandwidth = np.mean(distances[0])
+        return bandwidth if bandwidth > 0 else threshold  # Avoid zero bandwidth
+
+    def gaussian_kernel(self, distance, bandwidth):
         return np.exp(-0.5 * (distance / bandwidth) ** 2)
-    
-    def _adaptive_bandwidth(self, X, cluster_centers):  # added method
-        nbrs = NearestNeighbors(n_neighbors=1, n_jobs=self.n_jobs).fit(cluster_centers)
-        distances, _ = nbrs.kneighbors(X)
-        return np.median(distances)
 
-    def _assign_labels_flat(self, X, cluster_centers, bandwidth):  # added method
+    def gaussian_kernel(self, distance, bandwidth):
+        return np.exp(-0.5 * (distance / bandwidth) ** 2)
+
+    def _assign_labels_flat(self, X, cluster_centers, bandwidth):
         nbrs = NearestNeighbors(n_neighbors=1, n_jobs=self.n_jobs).fit(cluster_centers)
         labels = np.zeros(X.shape[0], dtype=int)
         distances, idxs = nbrs.kneighbors(X)
@@ -464,12 +554,11 @@ class MeanShift(ClusterMixin, BaseEstimator):
             labels = idxs.flatten()
         else:
             labels.fill(-1)
-            bool_selector = distances.flatten() <= bandwidth
+            bool_selector = distances.flatten() <= bandwidth   
             labels[bool_selector] = idxs.flatten()[bool_selector]
-
         self.cluster_centers_, self.labels_ = cluster_centers, labels
 
-    def _assign_labels_gaussian(self, X, cluster_centers, bandwidth):  # added method
+    def _assign_labels_gaussian(self, X, cluster_centers, bandwidth):
         nbrs = NearestNeighbors(n_neighbors=1, n_jobs=self.n_jobs).fit(cluster_centers)
         labels = np.zeros(X.shape[0], dtype=int)
         distances, idxs = nbrs.kneighbors(X)
@@ -479,7 +568,6 @@ class MeanShift(ClusterMixin, BaseEstimator):
             labels.fill(-1)
             bool_selector = distances.flatten() <= bandwidth
             labels[bool_selector] = idxs.flatten()[bool_selector]
-
         self.cluster_centers_, self.labels_ = cluster_centers, labels
 
     def predict(self, X):

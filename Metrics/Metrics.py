@@ -235,8 +235,8 @@ def domain_distance_matrix(lists_label, list_residue=None): # Order in lists_lab
 
     return domain_distance_mtx
 
-# Function to compute Domain Boundary Distance (DBD) or Structural Domain Distance (SDD)
-def SDD(domain_distance_mtx, threshold=20):
+# Function to compute Chain Segment Distance (CSD)
+def CSD(domain_distance_mtx, threshold=20):
     scoring_mtx = [[threshold - i if i < threshold else 0 for i in row] for row in domain_distance_mtx]
     
     # Max values by column
@@ -246,11 +246,11 @@ def SDD(domain_distance_mtx, threshold=20):
     max_by_row = np.max(scoring_mtx, axis=1).tolist() 
     
     if len(max_by_row) >= len(max_by_col):
-        dbd = sum(max_by_row)/(threshold*len(max_by_row))
+        csd = sum(max_by_row)/(threshold*len(max_by_row))
     else:
-        dbd = sum(max_by_col)/(threshold*len(max_by_col))
+        csd = sum(max_by_col)/(threshold*len(max_by_col))
 
-    return dbd
+    return csd
 
 # Function to compute Domain Boundary Distance (DBD) or Structural Domain Distance (SDD)
 def DBD(domain_distance_mtx, threshold=20):

@@ -19,7 +19,7 @@ Then use this command below to run the docker image:
 ```docker run -v `pwd`:/workdir/data lequockhang/rna3dclust [options] ```  
 where `` `pwd` `` is your full path to your working directory containing input file(s).  
 Here is the full command for example:  
-```docker run -v `pwd`:/workdir/data lequockhang/rna3dclust -i data/4y1n.pdb -a A -v -o data/Output```
+```docker run -v `pwd`:/workdir/data lequockhang/rna3dclust -i data/4adv.pdb -a A -v -o data/Output```
 
 3. Using source code:  
 ```git clone https://github.com/LeKhang97/RNA3DClust```  
@@ -82,52 +82,38 @@ options:
 ### Example
 Here is an example of using RNA3DClust and its output, using MeanShift clustering algorithm with default parameters (flat kernel, bandwidth = 0.2):
 ```
-python3 RNA3Dclust.py -a M -i data/4y1n.pdb
+python3 RNA3Dclust.py -a M -i data/4adv.pdb
 ==================
 Input information:
 ==================
 Using atom type:  C3'
 Using algorithm:  MeanShift
 Mode selected for MeanShift algorithm: bandwidth: 0.2, kernel type: flat
+['data/4adv.pdb', 'M', 0.2, 'flat', 'static', 30]
+{'A'}
+Processing all valid chains!
+
+Missing residues on chain A: 1-4; 1386-1505; 1535-1542; 
+
+('M', 0.2, 'flat', 'static', 30, 'A')
 ----------------------------------------
 Executing MeanShift on chain A...
-
-MeanShift algorithm converged after 24 iterations.
-
+Static bandwidth for all iterations: 50.7926621208549
+Iteration 0
+Iteration 20
+Iteration 40
+Max iterations reached: 57
 ===================
 Output information:
 ===================
-Chain A has 3 clusters and without outliers.
-Number of residues of cluster 1: 100
+Chain A has 2 clusters and without outliers.
+Number of residues of cluster 1: 928
 Cluster 1 positions:
-1-70, 114-126, 234-250, 
+1-928, 
 
-Number of residues of cluster 2: 107
+Number of residues of cluster 2: 606
 Cluster 2 positions:
-127-233, 
-
-Number of residues of cluster 3: 63
-Cluster 3 positions:
-71-113, 251-270, 
-
-
-
-----------------------------------------
-Executing MeanShift on chain B...
-
-MeanShift algorithm converged after 30 iterations.
-
-===================
-Output information:
-===================
-Chain B has 2 clusters and without outliers.
-Number of residues of cluster 1: 131
-Cluster 1 positions:
-1-93, 233-270, 
-
-Number of residues of cluster 2: 139
-Cluster 2 positions:
-94-232, 
+929-1534, 
 
 ```
 ### Notes

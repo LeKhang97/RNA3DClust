@@ -12,8 +12,7 @@ ndo_score = NDO(overlap_mtx,length_seq, min_labels)
 ```  
 **The DBD (Domain Boundary Distance)** and **CSD (Chain Segment Distance)** measures the distances between boundaries:
 ![DBD_NDO_DCS(6)](https://github.com/user-attachments/assets/6f9d9883-4974-4dcb-89a3-c1ab195c7b38)
-
-![DBD_NDO_DCS(4)](https://github.com/user-attachments/assets/c2939e51-9ff0-4f31-b405-eea48ed23f02)
+![DBD_NDO_DCS(4)](https://github.com/user-attachments/assets/d9c7128e-094f-4664-bce2-7a686b111e85)
 
 Both metrics require computing the Domain Distance Matrix first. This matrix is different from each other. Then, based on the distance matrices, we calculate the final scores:
 

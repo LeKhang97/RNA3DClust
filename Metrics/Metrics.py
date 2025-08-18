@@ -116,7 +116,7 @@ def NDO(domain_matrix, len_rnas, min_labels=[0, 0]):
 def domain_distance(segment1, segment2):
     return (abs(min(segment1) - min(segment2)) + abs(max(segment1) - max(segment2))) / 2
 
-# Matrix for calculating Structural Domain Distance (SDD)
+# Matrix for calculating Chain Segment Distance (CSD)
 def domain_distance_matrix2(lists_label, list_residue=None): #Order in lists_label: ground_truth, prediction
     if list_residue is None:
         list_residue = range(len(lists_label[0]))

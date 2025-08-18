@@ -45,7 +45,6 @@ positional arguments:
     M                   Arguments for MeanShift clustering algorithm
     A                   Arguments for Agglomerative clustering algorithm
     S                   Arguments for Spectral clustering algorithm
-    C                   Arguments for Contact map-based clustering algorithm
 
 options:
   -h, --help            show this help message and exit
@@ -64,14 +63,17 @@ options:
   -o OUTPATH, --outpath OUTPATH
                         output path for JSON and PDB files. If not specified, the output will be saved in the current directory.
 
+  -c [CHAIN], --chain CHAIN
+                        Name of the chain to be processed. If not specified, all chains will be processed.
+
   -p PDB, --pdb PDB
                         output filename in PDB format.
 
   -j JSON, --json JSON
                         output filename in JSON format.
 
-  -a {D,M,A,S,C}, --algorithm {D,M,A,S,C}
-                        Clustering algorithm. Either: D (DBSCAN); M (MeanShift, default); A (Agglomerative); S (Spectral); C (Contact map-based))
+  -a {D,M,A,S}, --algorithm {D,M,A,S}
+                        Clustering algorithm. Either: D (DBSCAN); M (MeanShift, default); A (Agglomerative); S (Spectral))
 ```
 
 - Each algorithm has its default parameters. For example, if you want to check the MeanShift, type ```python3 ./RNA3DClust.py M -h ``` for details. You can also change the parameters, in this case is the bandwidth (-b), by following: <br>

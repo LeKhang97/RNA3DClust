@@ -148,7 +148,6 @@ def process_args():
         largs += [args.b, args.k]
 
     elif args.algorithm == 'A':
-        print('hehe', args.n, args.d)
         if not hasattr(args, 'n') and not hasattr(args, 'd'):
             args.n = 2
             args.d = None
@@ -182,5 +181,6 @@ def process_args():
 
     largs += [args.mode, args.threshold]
     print(largs)
+
 
     return largs, largs2

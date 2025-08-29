@@ -185,7 +185,19 @@ def domain_distance_matrix(lists_label, list_residue=None): # Order in lists_lab
 
     dict_label = {'pred': lists_label[1], 'true': lists_label[0]}
     dict_label_linker_pred = dict_label.copy()
-
+    
+    num_dom_true = len(set(dict_label["true"]) - {-1})
+    num_dom_pred = len(set(dict_label["pred"]) - {-1})
+    
+    #print(set(dict_label["true"]), set(dict_label["pred"]))
+    #print(num_dom_true, num_dom_pred)
+    if num_dom_true != num_dom_pred:
+        if num_dom_true == 1:
+            return [[999999]]
+        
+        elif num_dom_pred == 1:
+            return [[9999999]]
+        
     # Convert all outlier segment in pred into domain label
     dict_label['pred'] = [i if i != -1 else max(set(dict_label['pred'])) + 1 for i in dict_label['pred']]
 
@@ -201,15 +213,19 @@ def domain_distance_matrix(lists_label, list_residue=None): # Order in lists_lab
             
             prev_label = dict_label[key][pos]
         
+        dict_boundary[key] = add_full_missing_gaps(dict_boundary[key], list_residue)
         dict_boundary[key] = list_to_range(dict_boundary[key])
+        
+        dict_boundary_linker_pred[key] = add_full_missing_gaps(dict_boundary_linker_pred[key], list_residue)
         dict_boundary_linker_pred[key] = list_to_range(dict_boundary_linker_pred[key])
     
     # Some exceptional cases
     # If the linker is only in the first or last position of pred, and/or there is no linker or also only in the first or last position of true, return distance 0
-    #if len(dict_boundary_linker_pred['pred']) <= 2 and len(dict_boundary_linker_pred['true']) <= 2:
+    # if len(dict_boundary_linker_pred['pred']) <= 2 and len(dict_boundary_linker_pred['true']) <= 2:
+    
     bool_pred = all(any(except_pos in boundary for except_pos in [list_residue[0], list_residue[-1]]) for boundary in dict_boundary_linker_pred['pred']) or len(dict_boundary_linker_pred['pred']) == 0
     bool_true = all(any(except_pos in boundary for except_pos in [list_residue[0], list_residue[-1]]) for boundary in dict_boundary_linker_pred['true']) or len(dict_boundary_linker_pred['true']) == 0
-        
+    
     if bool_pred and bool_true:
         return [[0]]
     
@@ -219,6 +235,7 @@ def domain_distance_matrix(lists_label, list_residue=None): # Order in lists_lab
     elif len(dict_boundary['pred']) == 0 or len(dict_boundary['true']) == 0:
         return [[999999]]
 
+    
     domain_distance_mtx = []
     for boundary1 in dict_boundary['pred']:
         row = []

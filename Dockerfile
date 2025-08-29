@@ -2,7 +2,7 @@
 FROM python:3.9-slim
 LABEL Maintainer="quoc-khang.le@universite-paris-saclay.fr"
 
-# Set the working directory in the container
+# Set working directory
 WORKDIR /workdir/
 
 RUN useradd -ms /bin/bash dockeruser
@@ -12,10 +12,9 @@ USER dockeruser
 
 # Install dependencies
 COPY requirements.txt /workdir/
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /workdir/
 
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Set the entry point to run the program as a module
-ENTRYPOINT ["python3", "RNA3Dclust.py"]
+# Set entry point
+ENTRYPOINT ["python3","RNA3Dclust.py"]
